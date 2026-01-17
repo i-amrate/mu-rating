@@ -74,7 +74,7 @@ export default function Home() {
         {/* الهيدر */}
         <div className={`transition-all duration-500 ${hasSearched ? 'mt-4 mb-6' : 'mt-2 mb-10 text-center'}`}>
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-800 mb-2 tracking-tight">
-            {hasSearched ? 'نتائج البحث' : 'قيّم دكتورك'}
+            {hasSearched ? 'نتائج البحث' : 'قيّم تجربة دكتورك'}
           </h1>
           {!hasSearched && (
             <p className="text-gray-400 text-sm font-medium">جامعة المجمعة</p>
