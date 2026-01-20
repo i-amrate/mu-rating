@@ -1,150 +1,143 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-// تأكد من الرابط (ثلاث مرات للخلف)
-import { supabase } from '../../../lib/supabase';
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { useParams, useRouter } from 'next/navigation';
 
-const GRADES = ["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F", "DN", "محتسب"];
-
-// 🚫 قائمة الكلمات الممنوعة (تقدر تزيد عليها)
-const BAD_WORDS = [
-  "كلام بذيء", "سب", "شتم", "لعن", "حقير", "زباله", "زبالة", "تبن", "حيوان", "غبي", "حمار"
-];
+// إعداد Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function ProfessorPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [professor, setProfessor] = useState<any>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [newReview, setNewReview] = useState('');
-  const [rating, setRating] = useState(0);
-  const [grade, setGrade] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]); // حالة لحفظ التعليقات
+  const [newReview, setNewReview] = useState(''); // حالة لحفظ النص الجديد
+  const [isSubmitting, setIsSubmitting] = useState(false); // حالة زر الإرسال
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: profData } = await supabase.from('professors').select('*').eq('id', id).single();
-      if (profData) setProfessor(profData);
+    async function getData() {
+      // 1. جيب بيانات الدكتور
+      const { data: prof } = await supabase
+        .from('professors')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      setProfessor(prof);
 
-      const { data: reviewsData } = await supabase.from('reviews').select('*').eq('professor_id', id).order('created_at', { ascending: false });
-      if (reviewsData) setReviews(reviewsData);
-    };
-    fetchData();
+      // 2. جيب التعليقات حقته
+      if (prof) {
+        const { data: revs } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('professor_id', prof.id)
+          .order('created_at', { ascending: false }); // الأحدث فوق
+        
+        setReviews(revs || []);
+      }
+    }
+
+    if (id) getData();
   }, [id]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // دالة إرسال التعليق
+  async function handleSubmit(e: any) {
     e.preventDefault();
-    
-    // 1. التحقق من النجوم
-    if (rating === 0) {
-      alert('الرجاء اختيار عدد النجوم ⭐');
-      return;
-    }
-
-    // 2. التحقق من طول النص (حماية من النصوص الطويلة جداً)
-    if (newReview.length > 500) {
-      alert('التعليق طويل جداً! المسموح 500 حرف.');
-      return;
-    }
-
-    // 3. التحقق من الكلمات البذيئة (Filter)
-    const hasBadWord = BAD_WORDS.some(word => newReview.includes(word));
-    if (hasBadWord) {
-      alert('عذراً، التعليق يحتوي على كلمات غير لائقة. يرجى الالتزام بالاحترام.');
-      return;
-    }
+    if (!newReview.trim()) return; // لو الخانة فاضية لا ترسل شي
 
     setIsSubmitting(true);
-    const { data, error } = await supabase.from('reviews').insert([{
-      professor_id: id,
-      content: newReview,
-      rating: rating,
-      grade: grade || null
-    }]).select();
+    
+    // إرسال التعليق لـ Supabase
+    const { error } = await supabase
+      .from('reviews')
+      .insert([
+        { content: newReview, professor_id: professor.id }
+      ]);
 
-    if (error) {
-      alert('حدث خطأ أثناء الإرسال');
+    if (!error) {
+      setNewReview(''); // فضي الخانة بعد الإرسال
+      
+      // حدث القائمة عشان يطلع التعليق الجديد فوراً
+      const { data: updatedReviews } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('professor_id', professor.id)
+        .order('created_at', { ascending: false });
+        
+      setReviews(updatedReviews || []);
     } else {
-      setReviews([data[0], ...reviews]);
-      setNewReview('');
-      setRating(0);
-      setGrade('');
+      alert('صار خطأ بسيط، تأكد من النت!');
+      console.log(error);
     }
+    
     setIsSubmitting(false);
-  };
+  }
 
-  const averageRating = reviews.length ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length).toFixed(1) : 'جديد';
-
-  if (!professor) return <div className="text-center mt-20">جاري التحميل...</div>;
+  if (!professor) return <div className="p-10 text-white text-center">جاري التحميل... ⏳</div>;
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] p-6 text-right" dir="rtl">
-      <div className="max-w-2xl mx-auto space-y-6">
-        
-        {/* زر العودة للرئيسية */}
-        <div className="mb-4">
-            <a href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-emerald-600 transition font-bold text-sm">
-                <span>➜</span> العودة للرئيسية
-            </a>
-        </div>
+    <div className="min-h-screen bg-slate-900 text-white p-6 font-sans" dir="rtl">
+      {/* زر الرجوع */}
+      <button onClick={() => router.push('/')} className="mb-6 text-emerald-400 hover:underline">
+        ← رجوع للقائمة
+      </button>
 
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">{professor.name}</h1>
-          <p className="text-gray-500 mb-4">{professor.college} • {professor.department}</p>
-          <div className="inline-flex items-center gap-2 bg-emerald-50 px-6 py-3 rounded-2xl border border-emerald-100">
-            <span className="text-4xl font-bold text-emerald-600">{averageRating}</span>
-            <div className="text-left">
-              <div className="text-xs text-emerald-800 font-bold uppercase tracking-wider">التقييم العام</div>
-              <div className="text-xs text-emerald-600">من {reviews.length} طالب</div>
-            </div>
+      {/* بطاقة الدكتور */}
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-slate-800 p-8 rounded-2xl shadow-lg border border-slate-700 mb-8">
+          <h1 className="text-4xl font-bold text-emerald-400 mb-2">{professor.name}</h1>
+          <p className="text-xl text-gray-300 mb-4">{professor.department}</p>
+          <div className="flex gap-4 text-sm text-gray-400 border-t border-slate-700 pt-4">
+             <span>جامعة الإمام</span>
+             <span>•</span>
+             <span>كلية الاقتصاد والعلوم الإدارية</span>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">أضف تجربتك</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex gap-4 flex-wrap">
-              <div className="flex-1">
-                <label className="block text-xs font-bold text-gray-500 mb-2">تقييمك للدكتور</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button key={star} type="button" onClick={() => setRating(star)} className={`text-3xl transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400' : 'text-gray-200'}`}>★</button>
-                  ))}
-                </div>
-              </div>
-              <div className="w-32">
-                <label className="block text-xs font-bold text-gray-500 mb-2">الدرجة اللي أخذتها</label>
-                <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none focus:border-emerald-500 text-sm font-bold text-gray-700">
-                  <option value="">اختر...</option>
-                  {GRADES.map(g => (<option key={g} value={g}>{g}</option>))}
-                </select>
-              </div>
-            </div>
-            
-            <div className="relative">
-                <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تجربتك بكل صدق.. كيف شرحه؟ كيف تعامله؟" className="w-full p-4 bg-gray-50 rounded-xl border border-gray-200 outline-none focus:border-emerald-500 min-h-[120px]" required />
-                <div className="absolute bottom-3 left-3 text-xs text-gray-400">{newReview.length}/500</div>
-            </div>
+        {/* قسم التعليقات الجديد */}
+        <div className="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
+          <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            💬 تعليقات الطلاب
+            <span className="text-sm bg-slate-700 px-2 py-1 rounded-full text-gray-300 font-normal">
+              {reviews.length}
+            </span>
+          </h3>
 
-            <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition shadow-md">{isSubmitting ? 'جاري النشر...' : 'نشر التقييم'}</button>
+          {/* نموذج الكتابة */}
+          <form onSubmit={handleSubmit} className="mb-8">
+            <textarea
+              value={newReview}
+              onChange={(e) => setNewReview(e.target.value)}
+              placeholder="اكتب تجربتك مع الدكتور بكل أمانة..."
+              className="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white focus:outline-none focus:border-emerald-500 min-h-[100px]"
+            />
+            <button 
+              disabled={isSubmitting}
+              type="submit" 
+              className="mt-3 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+            >
+              {isSubmitting ? 'جاري النشر...' : 'انشر التعليق 🚀'}
+            </button>
           </form>
-        </div>
 
-        <div className="space-y-4">
-          {reviews.map((review) => (
-            <div key={review.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex text-yellow-400 text-sm">{[...Array(5)].map((_, i) => (<span key={i}>{i < review.rating ? '★' : '☆'}</span>))}</div>
-                  <span className="text-gray-300 text-xs">•</span>
-                  <span className="text-gray-400 text-xs">{new Date(review.created_at).toLocaleDateString('ar-SA')}</span>
+          {/* عرض التعليقات */}
+          <div className="space-y-4">
+            {reviews.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">لسه ما فيه تعليقات، كن أول واحد يقيم! 😎</p>
+            ) : (
+              reviews.map((review) => (
+                <div key={review.id} className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                  <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{review.content}</p>
+                  <p className="text-xs text-gray-500 mt-3 text-left" dir="ltr">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                {review.grade && (<span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full border border-emerald-100">أخذ عنده: {review.grade}</span>)}
-              </div>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{review.content}</p>
-            </div>
-          ))}
-          {reviews.length === 0 && (<div className="text-center py-10 opacity-50"><div className="text-4xl mb-2">💬</div><p>كن أول من يقيم هذا الدكتور!</p></div>)}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
