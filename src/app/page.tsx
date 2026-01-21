@@ -1,8 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
-import { Search, Plus, LayoutGrid, ArrowRight, X } from 'lucide-react';
+import { Search, Plus, LayoutGrid, ArrowRight, X, Star, Trophy } from 'lucide-react';
 
 const COLLEGES = [
   "كلية علوم الحاسب والمعلومات",
@@ -19,9 +19,25 @@ const COLLEGES = [
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [professors, setProfessors] = useState<any[]>([]);
+  const [topProfessors, setTopProfessors] = useState<any[]>([]); // حالة لحفظ أفضل الدكاترة
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
+  // --- جلب أفضل الدكاترة عند تحميل الصفحة ---
+  useEffect(() => {
+    const fetchTopProfessors = async () => {
+      // هنا نجيب الدكاترة ونرتبهم حسب التقييم (مؤقتاً نجيب أول 5، لاحقاً نضيف order by rating)
+      const { data } = await supabase
+        .from('professors')
+        .select('*')
+        .limit(5); // جلب 5 دكاترة
+      
+      if (data) setTopProfessors(data);
+    };
+
+    fetchTopProfessors();
+  }, []);
 
   const executeSearch = async (term: string) => {
     if (!term.trim()) return;
@@ -56,7 +72,47 @@ export default function Home() {
       <div className="fixed top-[-10%] left-[-10%] w-96 h-96 bg-teal-600/10 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob pointer-events-none"></div>
       <div className="fixed bottom-[-20%] right-[-10%] w-96 h-96 bg-blue-600/10 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob animation-delay-2000 pointer-events-none"></div>
 
-      {/* وسعنا الكونتينر شوي (max-w-2xl) عشان يكفي الأزرار لما تتمدد */}
+      {/* ✨ القائمة الجانبية: أفضل الدكاترة (تظهر في الشاشات الكبيرة فقط) ✨ */}
+      <div className="hidden xl:block fixed right-8 top-1/2 -translate-y-1/2 w-72 bg-slate-900/80 border border-slate-700/50 backdrop-blur-md rounded-3xl p-5 shadow-2xl z-40 animate-fade-in-right">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-700/50">
+          <Trophy className="text-amber-400" size={20} />
+          <h2 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-l from-amber-200 to-amber-500">
+            أفضل الدكاترة
+          </h2>
+        </div>
+        
+        <div className="space-y-3">
+          {topProfessors.length > 0 ? (
+            topProfessors.map((prof, index) => (
+              <Link 
+                key={prof.id} 
+                href={`/professor/${prof.id}`}
+                className="group flex items-center justify-between p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-teal-500/30 rounded-xl transition-all duration-300 cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  {/* رقم الترتيب */}
+                  <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-400' : index === 1 ? 'bg-slate-400/20 text-slate-300' : index === 2 ? 'bg-orange-700/20 text-orange-400' : 'bg-slate-800 text-slate-500'}`}>
+                    {index + 1}
+                  </span>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-slate-200 group-hover:text-teal-400 transition-colors line-clamp-1">{prof.name}</p>
+                    <p className="text-[9px] text-slate-500 truncate max-w-[100px]">{prof.department}</p>
+                  </div>
+                </div>
+                {/* التقييم (مؤقت) */}
+                <div className="flex items-center gap-1 bg-slate-900/80 px-1.5 py-0.5 rounded-md border border-slate-700">
+                  <span className="text-[10px] font-bold text-amber-400">5.0</span>
+                  <Star size={8} className="text-amber-400 fill-amber-400" />
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="text-center py-4 text-slate-500 text-xs">جاري التحميل...</div>
+          )}
+        </div>
+      </div>
+
+      {/* المحتوى الرئيسي (لم يتغير) */}
       <main className="flex-1 w-full max-w-2xl mx-auto p-6 flex flex-col justify-center relative z-10">
         
         {/* عنوان الصفحة */}
