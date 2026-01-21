@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // 1. استوردنا Viewport
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
@@ -19,17 +19,26 @@ export const metadata: Metadata = {
   description: "دليلك لتقييم واختيار دكاترة جامعة المجمعة",
 };
 
+// 2. هذا الكود السحري للجوال: يخلي شريط المتصفح والمنطقة الزايدة لونها غامق
+export const viewport: Viewport = {
+  themeColor: "#020617", // كود لون bg-slate-950
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-200`}>
+    <html lang="ar" dir="rtl" className="bg-slate-950"> {/* 3. أضفنا اللون هنا للأمان */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-200 min-h-screen`}>
         
         {/* --- الهيدر الثابت --- */}
-        <nav className="fixed top-0 inset-x-0 z-[100] bg-slate-950/90 backdrop-blur-xl border-b border-slate-800 h-20 transition-all duration-300 flex items-center justify-center shadow-2xl shadow-black/20">
+        {/* تم تعديل الخلفية لتكون صلبة (بدون شفافية) عشان ما تبين فرق اللون */}
+        <nav className="fixed top-0 inset-x-0 z-[100] bg-slate-950 border-b border-slate-800 h-20 transition-all duration-300 flex items-center justify-start md:justify-center pl-4 md:pl-0 shadow-2xl shadow-black/20">
           
           {/* 1. اسم الجامعة (يمين) */}
           <div className="absolute right-5 md:right-8 top-1/2 -translate-y-1/2 flex items-center gap-3 opacity-60 hover:opacity-100 transition-opacity duration-500 cursor-default select-none group">
@@ -47,26 +56,15 @@ export default function RootLayout({
           {/* 2. القائمة الوسطية */}
           <div className="flex items-center bg-slate-900 rounded-full border border-slate-700/50 px-4 py-2 gap-4 shadow-xl hover:border-teal-500/30 transition-all duration-300 group">
             
-            {/* =======================================================
-                📌 الشعار الجديد (AZ) - تداخل + تباعد عند اللمس
-               ======================================================= */}
+            {/* الشعار AZ */}
             <Link href="/" className="group/logo">
               <div className="w-9 h-9 bg-slate-800 rounded-full flex items-center justify-center border border-slate-600 group-hover/logo:bg-teal-600 group-hover/logo:border-teal-500 transition-all duration-300 shadow-lg overflow-hidden relative">
-                
-                {/* dir="ltr" لترتيب الأحرف إنجليزي */}
                 <div className="relative flex items-center justify-center font-black text-base leading-none select-none tracking-tighter" dir="ltr">
-                   
-                   {/* حرف A: يروح يسار عند اللمس (-translate-x-1) */}
                    <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-teal-500/55 -mr-[0.25em] group-hover/logo:text-white group-hover/logo:bg-none group-hover/logo:-translate-x-0.5 transition-all duration-300">A</span>
-                   
-                   {/* حرف Z: يروح يمين عند اللمس (translate-x-1) */}
                    <span className="relative z-0 text-transparent bg-clip-text bg-gradient-to-r from-teal-500/55 to-emerald-400 group-hover/logo:text-white group-hover/logo:bg-none group-hover/logo:translate-x-0.5 transition-all duration-300">Z</span>
-                
                 </div>
-
               </div>
             </Link>
-            {/* ======================================================= */}
 
             {/* الاسم */}
             <Link href="/" className="font-bold text-sm text-slate-200 hover:text-white transition-colors tracking-wide pt-0.5 hidden sm:block">

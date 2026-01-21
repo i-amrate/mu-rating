@@ -1,20 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  /* ثبتنا اللون الكحلي هنا عشان نضمن الخلفية تتغير */
-  --background: #0f172a; 
+  /* عدلت اللون هنا ليطابق bg-slate-950 الموجود في اللي اوت */
+  --background: #020617; 
   --foreground: #ededed;
 }
 
+/* هنا الحل لمشكلة اللون الرمادي عند السحب 
+   أضفنا html مع body وعطيناهم نفس اللون
+*/
+html,
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   overflow-x: hidden; /* يمنع ظهور شريط تمرير سفلي */
+  height: 100%;       /* يضمن أن الخلفية تغطي الشاشة كاملة */
+  margin: 0;
+  padding: 0;
 }
 
 /* =========================================
-   تعريف الحركات يدوياً (عشان تضمن أنها تشتغل)
+   تجميل شريط التمرير (Scrollbar) للابتوب
+   ========================================= */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background); /* لون المسار نفس خلفية الموقع */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b; /* لون المقبض رمادي غامق */
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2dd4bf; /* لون تيل عند وضع الماوس عليه */
+}
+
+/* =========================================
+   الأنيميشن الخاص بك (كما هو)
    ========================================= */
 
 /* حركة الفقاعات */
