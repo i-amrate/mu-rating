@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, BarChart3, TrendingUp, Users } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -185,7 +185,8 @@ export default function ProfessorPage() {
     if (likedReviews.has(reviewId)) return;
     setReviews(reviews.map(r => r.id === reviewId ? { ...r, likes_count: (r.likes_count || 0) + 1 } : r));
     setLikedReviews(prev => new Set(prev).add(reviewId));
-    await supabase.rpc('increment_likes', { review_id: reviewId }).catch(() => {});
+    // تم الإصلاح هنا: إزالة .catch
+    await supabase.rpc('increment_likes', { review_id: reviewId });
   }
 
   async function handleSubmit(e: any) {
