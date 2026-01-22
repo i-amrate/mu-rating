@@ -1,11 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-// تأكد من مسار الـ lib حسب مشروعك (سواء نقطة أو نقطتين)
 import { supabase } from '../../lib/supabase';
-import { ArrowRight, ArrowLeft } from 'lucide-react'; // حذفت Plus من هنا لأننا ما عاد نحتاجها
-
-const APPROVAL_THRESHOLD = 3;
+import { ArrowRight } from 'lucide-react';
 
 const COLLEGES = [
   "كلية علوم الحاسب والمعلومات",
@@ -33,191 +30,123 @@ export default function AddProfessor() {
     setIsSubmitting(true);
 
     const cleanName = name.trim();
-    
-    let finalCollege = college;
-    if (college === 'أخرى (كتابة يدوية)') {
-      if (!customCollege.trim()) {
-        alert('الرجاء كتابة اسم الكلية ✍️');
-        setIsSubmitting(false);
-        return;
-      }
-      finalCollege = customCollege.trim();
+    let finalCollege = college === 'أخرى (كتابة يدوية)' ? customCollege.trim() : college;
+
+    if (college === 'أخرى (كتابة يدوية)' && !customCollege.trim()) {
+      alert('الرجاء كتابة اسم الكلية ✍️');
+      setIsSubmitting(false);
+      return;
     }
 
+    // 1. التحقق إذا كان الدكتور موجود مسبقاً
     const { data: existingProf } = await supabase
       .from('professors')
-      .select('*')
+      .select('id')
       .ilike('name', cleanName)
       .single();
 
     if (existingProf) {
-      if (existingProf.is_approved) {
-        alert('هذا الدكتور موجود في الموقع مسبقاً! سيتم تحويلك لصفحته.');
-        router.push(`/professor/${existingProf.id}`);
-      } else {
-        const newCount = (existingProf.request_count || 1) + 1;
-        const shouldApprove = newCount >= APPROVAL_THRESHOLD;
-
-        await supabase
-          .from('professors')
-          .update({ 
-            request_count: newCount,
-            is_approved: shouldApprove 
-          })
-          .eq('id', existingProf.id);
-
-        if (shouldApprove) {
-          alert('✅ تم اعتماد الدكتور وإضافته للقائمة بنجاح! شكراً لمساهمتك.');
-          router.push(`/professor/${existingProf.id}`);
-        } else {
-          alert('✅ تم استلام طلبك! سيقوم فريق العمل بمراجعة الاسم وإضافته قريباً.');
-          router.push('/');
-        }
-      }
-    } else {
-      const { error } = await supabase
-        .from('professors')
-        .insert([
-          { 
-            name: cleanName, 
-            college: finalCollege,
-            department: department.trim(),
-            is_approved: false,
-            request_count: 1
-          }
-        ]);
-
-      if (error) {
-        alert('حدث خطأ بسيط، حاول مرة أخرى.');
-      } else {
-        alert('✅ شكراً لك! تم رفع الطلب للإدارة، وسيظهر الدكتور في الموقع بعد التحقق من صحة البيانات.');
-        router.push('/');
-      }
+      alert('هذا الدكتور موجود مسبقاً، سيتم توجيهك لصفحته للتقييم ✅');
+      router.push(`/professor/${existingProf.id}`);
+      return;
     }
+
+    // 2. إضافة الدكتور الجديد وجلب الـ ID حقه فوراً
+    const { data, error } = await supabase
+      .from('professors')
+      .insert([
+        { 
+          name: cleanName, 
+          college: finalCollege,
+          department: department.trim(),
+          is_approved: true, // تفعيله فوراً لكي يتمكن الطالب من تقييمه
+          request_count: 1
+        }
+      ])
+      .select(); // 🔥 جلب البيانات المضافة
+
+    if (error) {
+      alert('حدث خطأ أثناء الإضافة، حاول مرة أخرى.');
+    } else if (data && data.length > 0) {
+      // 🚀 التوجيه الذكي لصفحة الدكتور الجديد فوراً 🚀
+      router.push(`/professor/${data[0].id}`);
+    }
+    
     setIsSubmitting(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-right relative overflow-hidden" dir="rtl">
-      
-      {/* --- خلفية جمالية غامقة --- */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-teal-900/20 rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-blob pointer-events-none"></div>
-      <div className="absolute bottom-[-20%] right-[-10%] w-96 h-96 bg-blue-900/20 rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-blob animation-delay-2000 pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-teal-900/20 rounded-full blur-[100px] opacity-30 pointer-events-none"></div>
 
-      {/* --- الكارت الرئيسي --- */}
-      <div className="w-full max-w-lg bg-slate-900/60 backdrop-blur-xl rounded-[24px] shadow-2xl shadow-black/50 border border-slate-800 p-8 relative z-10 animate-fade-in-up">
+      <div className="w-full max-w-lg bg-slate-900/60 backdrop-blur-xl rounded-[24px] shadow-2xl border border-slate-800 p-8 relative z-10 animate-fade-in-up">
         
-        {/* زر العودة (تم تعديل الأيقونة لتناسب الاتجاه العربي إذا لزم الأمر، أو يمكنك استخدام ArrowRight) */}
         <button 
           onClick={() => router.push('/')}
-          className="absolute top-6 right-6 w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-sm border border-slate-700 group"
-          title="عودة للرئيسية"
+          className="absolute top-6 right-6 w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white border border-slate-700 transition-all shadow-sm group"
         >
           <ArrowRight size={18} className="group-hover:-translate-x-1 transition-transform" />
         </button>
 
-        {/* الهيدر (تم حذف أيقونة الزائد +) */}
         <div className="text-center mb-8 pt-4">
-          <h1 className="text-2xl font-extrabold text-white tracking-wide">إضافة دكتور جديد</h1>
-          <p className="text-slate-400 text-xs mt-2">ساعد زملاءك في الوصول لأفضل الدكاترة</p>
+          <h1 className="text-2xl font-extrabold text-white">إضافة دكتور جديد</h1>
+          <p className="text-slate-400 text-xs mt-2">أضف الدكتور وابدأ بتقييمه فوراً</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          
-          {/* حقل الاسم */}
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block mr-1">اسم الدكتور</label>
-            <div className="relative group">
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-              </div>
-              <input 
-                type="text" 
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder=" محمد عبدالله..."
-                className="w-full pl-4 pr-10 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500/50 focus:bg-slate-950 focus:shadow-[0_0_15px_rgba(20,184,166,0.1)] outline-none transition-all text-slate-200 placeholder-slate-600"
-              />
-            </div>
+            <label className="text-xs font-bold text-slate-400 mb-1.5 block">اسم الدكتور</label>
+            <input 
+              type="text" required value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="الاسم الكامل..."
+              className="w-full px-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500 outline-none text-slate-200 transition-all"
+            />
           </div>
 
-          {/* حقل الكلية */}
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block mr-1">الكلية</label>
-            <div className="relative group">
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" /></svg>
-              </div>
-              <select 
-                value={college}
-                onChange={(e) => setCollege(e.target.value)}
-                className="w-full pl-4 pr-10 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500/50 focus:bg-slate-950 focus:shadow-[0_0_15px_rgba(20,184,166,0.1)] outline-none transition-all text-slate-200 appearance-none cursor-pointer"
-              >
-                {COLLEGES.map((c) => (
-                  <option key={c} value={c} className="bg-slate-900 text-slate-300">{c}</option>
-                ))}
-              </select>
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none text-xs">▼</div>
-            </div>
+            <label className="text-xs font-bold text-slate-400 mb-1.5 block">الكلية</label>
+            <select 
+              value={college}
+              onChange={(e) => setCollege(e.target.value)}
+              className="w-full px-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500 outline-none text-slate-200 appearance-none cursor-pointer"
+            >
+              {COLLEGES.map((c) => (
+                <option key={c} value={c} className="bg-slate-900 text-slate-300">{c}</option>
+              ))}
+            </select>
           </div>
 
-          {/* حقل اسم الكلية اليدوي */}
           {college === 'أخرى (كتابة يدوية)' && (
             <div className="animate-fade-in-down">
-              <label className="text-xs font-bold text-teal-400 mb-1.5 block mr-1">اكتب اسم الكلية هنا:</label>
-              <div className="relative group">
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors pointer-events-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
-                </div>
-                <input 
-                  type="text" 
-                  value={customCollege}
-                  onChange={(e) => setCustomCollege(e.target.value)}
-                  placeholder="مثال: كلية طب الأسنان..."
-                  className="w-full pl-4 pr-10 py-3.5 bg-slate-950/50 border border-teal-500/30 rounded-xl text-sm focus:border-teal-500 focus:bg-slate-950 focus:shadow-[0_0_15px_rgba(20,184,166,0.1)] outline-none transition-all text-slate-200 placeholder-slate-600"
-                />
-              </div>
+              <label className="text-xs font-bold text-teal-400 mb-1.5 block">اسم الكلية يدوياً:</label>
+              <input 
+                type="text" value={customCollege}
+                onChange={(e) => setCustomCollege(e.target.value)}
+                placeholder="مثال: كلية العلوم الصحية..."
+                className="w-full px-4 py-3.5 bg-slate-950/50 border border-teal-500/30 rounded-xl text-sm focus:border-teal-500 outline-none text-slate-200 transition-all"
+              />
             </div>
           )}
 
-          {/* حقل القسم */}
           <div>
-            <label className="text-xs font-bold text-slate-400 mb-1.5 block mr-1">القسم</label>
-            <div className="relative group">
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-teal-400 transition-colors pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/></svg>
-              </div>
-              <input 
-                type="text" 
-                required
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                placeholder="محاسبة، قانون، فيزياء..."
-                className="w-full pl-4 pr-10 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500/50 focus:bg-slate-950 focus:shadow-[0_0_15px_rgba(20,184,166,0.1)] outline-none transition-all text-slate-200 placeholder-slate-600"
-              />
-            </div>
+            <label className="text-xs font-bold text-slate-400 mb-1.5 block">القسم</label>
+            <input 
+              type="text" required value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              placeholder="محاسبة، حاسب، لغات..."
+              className="w-full px-4 py-3.5 bg-slate-950/50 border border-slate-800 rounded-xl text-sm focus:border-teal-500 outline-none text-slate-200 transition-all"
+            />
           </div>
 
-          {/* زر الإرسال */}
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full mt-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-teal-900/20 border border-teal-500/20 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-2 bg-teal-600 hover:bg-teal-500 text-white py-4 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2 disabled:opacity-50"
           >
-            {isSubmitting ? 'جاري الإرسال...' : (
-              <>
-                <span>إضافة </span>
-                <span>🚀</span>
-              </>
-            )}
+            {isSubmitting ? 'جاري الإضافة...' : 'إضافة والذهاب للتقييم 🚀'}
           </button>
         </form>
-
-        <p className="text-center text-[10px] text-slate-600 mt-6 font-medium tracking-wide">
-            🔒 تخضع جميع الإضافات للمراجعة الآلية لضمان الجودة
-        </p>
-
       </div>
     </div>
   );
