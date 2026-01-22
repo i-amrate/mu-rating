@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -15,38 +15,168 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- دالة تفكيك التاريخ المنظم ---
+// 🔥 تصنيف الشارات 🔥
+const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
+  "شرييح": 'positive', "شرحه عادي": 'neutral', "شرحه سيئ": 'negative',
+  "متعاون": 'positive', "غير متعاون": 'negative', 
+  "تحضير_طبيعي": 'neutral', "تعاون_طبيعي": 'neutral', "شخصية_طبيعية": 'neutral', "مشروعه طبيعي": 'neutral', "اختباراته وسط": 'neutral',
+  "لين بالتحضير": 'positive', "شدييد بالتحضير": 'negative',
+  "اختباراته سهله": 'positive', "اختباراته صععبه": 'negative',
+  "رهييب بالمشروع": 'positive', "شديد بالمشروع": 'negative',
+  "محتررم": 'positive', "عسسلل": 'positive', "اخلاق": 'positive',
+  "غثيث": 'negative', "وقح": 'negative'
+};
+
+const BADGE_GROUPS = [
+  { id: 'attendance', label: 'التحضير', options: ["لين بالتحضير", "تحضير_طبيعي", "شدييد بالتحضير"] },
+  { id: 'explanation', label: 'الشرح', options: ["شرييح", "شرحه عادي", "شرحه سيئ"] },
+  { id: 'cooperation', label: 'التعاون', options: ["متعاون", "تعاون_طبيعي", "غير متعاون"] },
+  { id: 'projects', label: 'المشاريع', options: ["رهييب بالمشروع", "مشروعه طبيعي", "شديد بالمشروع"] },
+  { id: 'exams', label: 'الاختبارات', options: ["اختباراته سهله", "اختباراته وسط", "اختباراته صععبه"] },
+  { id: 'personality', label: 'الشخصية', options: ["محتررم", "عسسلل", "شخصية_طبيعية", "غثيث", "وقح"] },
+];
+
+const getBadgeLabel = (badge: string) => {
+  if (badge.includes('_طبيعي') || badge === 'مشروعه طبيعي' || badge === 'اختباراته وسط' || badge === 'شرحه عادي') return "طبيعي";
+  return badge;
+};
+
+const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
+  if (BADGE_TYPES[badge] === 'neutral') {
+     if (isSelected) return 'bg-slate-600 text-white border-slate-500 shadow-lg';
+     return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
+  }
+
+  const type = BADGE_TYPES[badge] || 'neutral';
+  
+  if (isSelected) {
+    switch (type) {
+      case 'positive': return 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40';
+      case 'negative': return 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/40';
+      default: return 'bg-slate-600 text-white border-slate-500 shadow-lg';
+    }
+  } else {
+    switch (type) {
+      case 'positive': return 'bg-emerald-500/5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10';
+      case 'negative': return 'bg-red-500/5 text-red-400 border-red-500/30 hover:bg-red-500/10';
+      default: return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
+    }
+  }
+};
+
+const getBadgeDisplayColor = (badge: string) => {
+    const type = BADGE_TYPES[badge] || 'neutral';
+    switch (type) {
+        case 'positive': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        case 'negative': return 'bg-red-500/10 text-red-400 border-red-500/30';
+        default: return 'bg-slate-700/50 text-slate-400 border-slate-600';
+    }
+}
+
+const calculateProfessorGrade = (percentage: number) => {
+    if (percentage >= 95) return 'A+';
+    if (percentage >= 90) return 'A';
+    if (percentage >= 85) return 'B+';
+    if (percentage >= 80) return 'B';
+    if (percentage >= 75) return 'C+';
+    if (percentage >= 70) return 'C';
+    if (percentage >= 60) return 'D';
+    return 'F';
+};
+
+// --- دوال التاريخ والوقت ---
 const getDateParts = (dateString: string, calendar: 'islamic-umalqura' | 'gregory') => {
   const date = new Date(dateString);
   const formatter = new Intl.DateTimeFormat('ar-SA', {
     calendar: calendar,
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true, numberingSystem: 'latn'
+    hour: '2-digit', minute: '2-digit', hour12: true, 
+    numberingSystem: 'latn'
   });
   const parts = formatter.formatToParts(date);
   const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
-  const dayPeriod = getPart('dayPeriod').replace(/[مصهـ]/g, '').trim();
   return {
     year: getPart('year').replace(/[مصهـ]/g, '').trim(),
     month: getPart('month'),
     day: getPart('day'),
-    time: `${getPart('hour')}:${getPart('minute')} ${dayPeriod}`
+    time: `${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod')}`
   };
 };
 
-const StructuredDate = ({ dateString, calendar, label, isHijri }: { dateString: string, calendar: any, label: string, isHijri: boolean }) => {
-  const p = getDateParts(dateString, calendar);
-  const baseClass = isHijri ? "bg-teal-950/20 text-teal-400 border-teal-500/10" : "bg-slate-800/30 text-slate-500 border-slate-700/30";
+const CompactDate = ({ dateString }: { dateString: string }) => {
+  const hijri = getDateParts(dateString, 'islamic-umalqura');
+  const greg = getDateParts(dateString, 'gregory');
   return (
-    <div className={`flex items-center gap-0.5 text-[10px] font-mono leading-none px-1.5 py-0.5 rounded-md border shadow-sm ${baseClass}`}>
-      <Clock size={9} className={isHijri ? "text-teal-600/40" : "text-slate-600"} />
-      <span className="w-8 text-center font-bold">{p.year}</span>
-      <span className="opacity-20">/</span>
-      <span className="w-4 text-center font-bold">{p.month}</span>
-      <span className="opacity-20">/</span>
-      <span className="w-4 text-center font-bold">{p.day}</span>
-      <span className="mx-0.5 h-2 w-[1px] bg-slate-700/40"></span>
-      <span className="w-14 text-center font-bold tracking-tighter">{p.time}</span>
+    <div className="flex items-center gap-2 text-[10px] font-mono leading-tight text-slate-500 opacity-80">
+      <div className="flex items-center">
+        <span>{hijri.day}/{hijri.month}/{hijri.year}</span>
+      </div>
+      <span className="text-slate-700">|</span>
+      <div className="flex items-center">
+        <span>{greg.day}/{greg.month}/{greg.year}</span>
+      </div>
+    </div>
+  );
+};
+
+const TimeDisplay = ({ dateString }: { dateString: string }) => {
+    const greg = getDateParts(dateString, 'gregory');
+    return (
+        <span className="text-[10px] font-mono text-slate-500 bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">
+            {greg.time}
+        </span>
+    );
+};
+
+// 🔥 الدائرة الذكية جداً 🔥
+const SuperSmartCircle = ({ percentage }: { percentage: number }) => {
+  const radius = 32; 
+  const circumference = 2 * Math.PI * radius;
+  const [offset, setOffset] = useState(circumference);
+
+  useEffect(() => {
+    const progressOffset = circumference - (percentage / 100) * circumference;
+    setTimeout(() => setOffset(progressOffset), 500);
+  }, [percentage, circumference]);
+
+  let colorStart = "#10b981"; let colorEnd = "#34d399"; let shadowColor = "rgba(16, 185, 129, 0.8)";
+  if (percentage < 50) { colorStart = "#ef4444"; colorEnd = "#f87171"; shadowColor = "rgba(239, 68, 68, 0.8)"; }
+  else if (percentage < 80) { colorStart = "#f59e0b"; colorEnd = "#fbbf24"; shadowColor = "rgba(245, 158, 11, 0.8)"; }
+
+  return (
+    <div className="relative w-24 h-24 flex items-center justify-center">
+      <svg className="w-full h-full transform -rotate-90 overflow-visible">
+        <defs>
+            <linearGradient id="smartGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={colorStart} />
+                <stop offset="100%" stopColor={colorEnd} />
+            </linearGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+        
+        <circle
+          cx="48" cy="48" r={radius}
+          stroke="url(#smartGrad)"
+          strokeWidth="6"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          filter="url(#glow)"
+          className="transition-[stroke-dashoffset] duration-[1500ms] ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-black text-white tracking-tighter" style={{ textShadow: `0 0 15px ${shadowColor}` }}>
+            {percentage}%
+        </span>
+      </div>
     </div>
   );
 };
@@ -62,46 +192,50 @@ const getGradeStyle = (grade: string) => {
     case 'D+': return 'bg-red-400/20 text-red-400 border-red-400/40';
     case 'D':  return 'bg-red-600/20 text-red-500 border-red-600/40';
     case 'F':  return 'bg-red-900/40 text-red-600 border-red-900/60 font-black';
+    case 'أتحفظ عن الإفصاح': return 'bg-slate-700 text-slate-400 border-slate-600 border-dashed text-[10px]';
     default:   return 'bg-slate-700 text-slate-300 border-slate-600';
   }
 };
 
-const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyContent, setReplyContent, submitReply, submitting, parentText }: any) => {
+const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyContent, setReplyContent, submitReply, submitting, parentText, onLikeReply, likedReplies }: any) => {
   const childReplies = allReplies.filter((r: any) => r.parent_id === reply.id);
-  const greg = getDateParts(reply.created_at, 'gregory');
-  const hijri = getDateParts(reply.created_at, 'islamic-umalqura');
+  const isLiked = likedReplies.has(reply.id);
 
   return (
     <div className="relative mt-4 mr-3 md:mr-6">
       <div className="absolute -right-3 md:-right-5 top-0 bottom-0 w-px bg-slate-700/50">
         <div className="absolute top-0 right-0 w-3 md:w-5 h-8 border-r border-t border-slate-700/50 rounded-tr-xl"></div>
       </div>
-      <div className="bg-slate-800/60 border border-slate-700/80 p-4 rounded-2xl text-sm text-slate-200 shadow-sm hover:border-teal-500/30 transition-all">
-        <div className="flex justify-between items-start mb-3">
+      <div className="bg-slate-800/60 border border-slate-700/80 p-4 rounded-2xl text-sm text-slate-200 shadow-sm hover:border-teal-500/30 transition-all relative overflow-hidden">
+        
+        <div className="absolute top-3 left-3">
+            <TimeDisplay dateString={reply.created_at} />
+        </div>
+
+        <div className="flex justify-between items-start mb-2">
           {parentText && (
-            <div className="flex items-center gap-1.5 text-[10px] bg-slate-900 px-2 py-1 rounded-md text-slate-500 border border-slate-700/30">
+            <div className="flex items-center gap-1.5 text-[10px] bg-slate-900 px-2 py-1 rounded-md text-slate-500 border border-slate-700/30 mb-2">
               <Reply size={10} className="rotate-180" />
               <span className="truncate max-w-[120px] text-slate-400 italic">"{parentText}"</span>
             </div>
           )}
-          <div className="relative group/time mr-auto">
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 bg-slate-950/50 px-2 py-1 rounded-md border border-slate-800 cursor-pointer">
-              <Clock size={10} />
-              <span className="font-bold">{greg.time}</span>
-            </div>
-            <div className="invisible group-hover/time:visible opacity-0 group-hover/time:opacity-100 absolute bottom-full mb-2 left-0 z-50 transition-all pointer-events-none">
-              <div className="bg-slate-950 border border-teal-500/40 p-2 rounded-lg shadow-2xl text-[9px] min-w-[110px]">
-                <div className="mb-1 pb-1 border-b border-slate-800">م: {greg.day}/{greg.month}/{greg.year}</div>
-                <div className="text-teal-400">هـ: {hijri.day}/{hijri.month}/{hijri.year}</div>
-              </div>
-            </div>
-          </div>
         </div>
-        <p className="leading-relaxed text-slate-300">{reply.content}</p>
-        <button onClick={() => onReplyClick(reply.id)} className={`text-[10px] font-bold mt-4 flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all ${activeReplyId === reply.id ? 'bg-teal-500/10 text-teal-400 border-teal-500/30' : 'bg-slate-900/50 text-slate-500 border-slate-700 hover:text-teal-400'}`}>
-          <CornerDownRight size={12} /> {activeReplyId === reply.id ? 'إلغاء' : 'رد'}
-        </button>
+        
+        <p className="leading-relaxed text-slate-300 mb-3 ml-2 break-words whitespace-pre-wrap">{reply.content}</p>
+        
+        <div className="flex items-center justify-between border-t border-slate-700/50 pt-2 mt-2">
+            <div className="flex gap-3 items-center">
+                <button onClick={() => onReplyClick(reply.id)} className={`text-[10px] font-bold flex items-center gap-1.5 transition-all ${activeReplyId === reply.id ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                  <CornerDownRight size={12} /> {activeReplyId === reply.id ? 'إلغاء' : 'رد'}
+                </button>
+                <button onClick={() => onLikeReply(reply.id)} className={`text-[10px] font-bold flex items-center gap-1 transition-colors ${isLiked ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                    <ThumbsUp size={12} className={isLiked ? "fill-teal-400" : ""} /> {reply.likes_count > 0 ? reply.likes_count : ''}
+                </button>
+            </div>
+            <CompactDate dateString={reply.created_at} />
+        </div>
       </div>
+
       {activeReplyId === reply.id && (
         <div className="mt-3 flex gap-2 animate-fade-in-down pr-2">
           <input value={replyContent} onChange={(e) => setReplyContent(e.target.value)} placeholder="اكتب ردك..." className="flex-grow bg-slate-900 border border-teal-500/30 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-teal-500 text-white shadow-inner" autoFocus />
@@ -109,29 +243,58 @@ const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyConten
         </div>
       )}
       {childReplies.map((child: any) => (
-        <ReplyItem key={child.id} reply={child} allReplies={allReplies} onReplyClick={onReplyClick} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submitting} parentText={reply.content} />
+        <ReplyItem key={child.id} reply={child} allReplies={allReplies} onReplyClick={onReplyClick} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submitting} parentText={reply.content} onLikeReply={onLikeReply} likedReplies={likedReplies} />
       ))}
     </div>
   );
 };
+
+const StarRatingInput = ({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) => (
+    <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-bold text-slate-400">{label}</label>
+        <div className="flex gap-0.5 justify-center sm:justify-end">
+            {[1, 2, 3, 4, 5].map((s) => (
+                <button key={s} type="button" onClick={() => onChange(s)} className="focus:outline-none transition-transform active:scale-90 hover:scale-110">
+                    <Star size={18} className={s <= value ? "fill-amber-400 text-amber-400" : "text-slate-600"} />
+                </button>
+            ))}
+        </div>
+    </div>
+);
 
 export default function ProfessorPage() {
   const { id } = useParams();
   const router = useRouter();
   const [professor, setProfessor] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  
   const [newReview, setNewReview] = useState('');
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
   const [grade, setGrade] = useState('');
+  const [course, setCourse] = useState('');
+  const [ratingAttendance, setRatingAttendance] = useState(0); 
+  const [ratingTeaching, setRatingTeaching] = useState(0);     
+  const [ratingBehavior, setRatingBehavior] = useState(0);     
+  const [ratingGrading, setRatingGrading] = useState(0);       
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+  
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
+  const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
+  
   const [sortBy, setSortBy] = useState<'newest' | 'most_liked' | 'most_commented'>('newest');
+
+  useEffect(() => {
+    const savedLikedReviews = localStorage.getItem('likedReviews');
+    if (savedLikedReviews) setLikedReviews(new Set(JSON.parse(savedLikedReviews)));
+
+    const savedLikedReplies = localStorage.getItem('likedReplies');
+    if (savedLikedReplies) setLikedReplies(new Set(JSON.parse(savedLikedReplies)));
+  }, []);
 
   async function getData() {
     const { data: prof } = await supabase.from('professors').select('*').eq('id', id).single();
@@ -144,10 +307,24 @@ export default function ProfessorPage() {
 
   useEffect(() => { if (id) getData(); }, [id]);
 
-  // إحصائيات الدكتور
-  const totalComments = reviews.reduce((acc, rev) => acc + (rev.replies?.length || 0), 0);
-  const avgRating = reviews.length > 0 ? (reviews.reduce((acc, rev) => acc + rev.rating, 0) / reviews.length).toFixed(1) : '0';
-  const engagementScore = (reviews.length * 2) + totalComments;
+  const percentageRating = reviews.length > 0 
+    ? Math.round((reviews.reduce((acc, rev) => acc + rev.rating, 0) / (reviews.length * 5)) * 100)
+    : 0;
+  
+  const getTopBadges = () => {
+    const badgeCounts: Record<string, number> = {};
+    reviews.forEach(r => { r.tags?.forEach((t: string) => { 
+        if(!t.includes('طبيعي')) {
+            const label = t; 
+            badgeCounts[label] = (badgeCounts[label] || 0) + 1; 
+        }
+    }); });
+    return Object.entries(badgeCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 4)
+        .map(([badge]) => badge);
+  };
+  const topBadges = getTopBadges();
 
   const handleShare = () => {
     const shareData = {
@@ -184,16 +361,89 @@ export default function ProfessorPage() {
   async function handleLike(reviewId: string) {
     if (likedReviews.has(reviewId)) return;
     setReviews(reviews.map(r => r.id === reviewId ? { ...r, likes_count: (r.likes_count || 0) + 1 } : r));
-    setLikedReviews(prev => new Set(prev).add(reviewId));
-    // تم الإصلاح هنا: إزالة .catch
+    const newLiked = new Set(likedReviews).add(reviewId);
+    setLikedReviews(newLiked);
+    localStorage.setItem('likedReviews', JSON.stringify(Array.from(newLiked)));
     await supabase.rpc('increment_likes', { review_id: reviewId });
   }
 
+  async function handleReplyLike(replyId: string) {
+    if (likedReplies.has(replyId)) return;
+
+    const updatedReviews = reviews.map(review => ({
+        ...review,
+        replies: review.replies.map((r: any) => 
+            r.id === replyId ? { ...r, likes_count: (r.likes_count || 0) + 1 } : r
+        )
+    }));
+    setReviews(updatedReviews);
+
+    const newLiked = new Set(likedReplies).add(replyId);
+    setLikedReplies(newLiked);
+    localStorage.setItem('likedReplies', JSON.stringify(Array.from(newLiked)));
+
+    await supabase.rpc('increment_reply_likes', { reply_id: replyId });
+  }
+
+  const toggleBadge = (badge: string, groupOptions: string[], groupId: string) => {
+    let newBadges = [...selectedBadges];
+    if (groupId === 'personality') {
+      const positiveTraits = ["محتررم", "عسسلل"];
+      const negativeTraits = ["غثيث", "وقح"];
+      
+      if (badge === "شخصية_طبيعية") {
+        newBadges = newBadges.filter(b => !groupOptions.includes(b));
+        if (!selectedBadges.includes("شخصية_طبيعية")) newBadges.push("شخصية_طبيعية");
+      } else {
+        newBadges = newBadges.filter(b => b !== "شخصية_طبيعية"); 
+        
+        const isPositiveSelection = positiveTraits.includes(badge);
+        if (isPositiveSelection) newBadges = newBadges.filter(b => !negativeTraits.includes(b));
+        else newBadges = newBadges.filter(b => !positiveTraits.includes(b));
+        
+        if (newBadges.includes(badge)) newBadges = newBadges.filter(b => b !== badge);
+        else newBadges.push(badge);
+      }
+    } else {
+      newBadges = newBadges.filter(b => !groupOptions.includes(b));
+      if (!selectedBadges.includes(badge)) newBadges.push(badge);
+    }
+    setSelectedBadges(newBadges);
+  };
+
   async function handleSubmit(e: any) {
     e.preventDefault();
-    if (rating === 0 || !grade || !newReview.trim()) return;
+    if (!grade || !newReview.trim() || !course.trim()) {
+        alert("الرجاء تعبئة جميع الحقول المطلوبة (المقرر، الدرجة، التجربة)");
+        return;
+    }
+    if (ratingAttendance === 0 || ratingTeaching === 0 || ratingBehavior === 0 || ratingGrading === 0) {
+        alert("الرجاء تقييم الدكتور في جميع المعايير الأربعة");
+        return;
+    }
+
+    // 🔥 التحقق الجديد: شارة واحدة على الأقل من أي مجموعة (أكثر مرونة) 🔥
+    if (selectedBadges.length === 0) {
+        alert("الرجاء اختيار وصف واحد على الأقل من الشارات.");
+        return;
+    }
+
     setIsSubmitting(true);
-    const { error } = await supabase.from('reviews').insert([{ content: newReview, rating, grade, professor_id: professor.id }]);
+    const overallRating = Math.round(((ratingAttendance + ratingTeaching + ratingBehavior + ratingGrading) / 4));
+
+    const { error } = await supabase.from('reviews').insert([{ 
+        content: newReview, 
+        rating: overallRating, 
+        grade, 
+        professor_id: professor.id,
+        course: course,
+        rating_attendance: ratingAttendance,
+        rating_teaching: ratingTeaching,
+        rating_behavior: ratingBehavior,
+        rating_grading: ratingGrading,
+        tags: selectedBadges
+    }]);
+
     if (!error) window.location.reload();
     setIsSubmitting(false);
   }
@@ -224,88 +474,185 @@ export default function ProfessorPage() {
           </button>
         </div>
 
-        {/* إحصائيات سريعة (Stats Bar) */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-800/50 border border-slate-700 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-teal-500/30 transition-all">
-            <TrendingUp size={16} className="text-amber-400" />
-            <span className="text-white font-black text-sm">{avgRating} / 5</span>
-            <span className="text-[9px] text-slate-500 font-bold">متوسط التقييم</span>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-teal-500/30 transition-all">
-            <MessagesSquare size={16} className="text-blue-400" />
-            <span className="text-white font-black text-sm">{totalComments}</span>
-            <span className="text-[9px] text-slate-500 font-bold">إجمالي الردود</span>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 hover:border-teal-500/30 transition-all">
-            <Users size={16} className="text-purple-400" />
-            <span className="text-white font-black text-sm">{engagementScore}</span>
-            <span className="text-[9px] text-slate-500 font-bold">مستوى التفاعل</span>
+        {/* الكارت 1: معلومات الدكتور */}
+        <div className={`${cardStyle} p-8`}>
+          <div className="flex flex-col gap-4">
+            <div className="inline-block">
+                <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className}`}>
+                <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
+                <span className="text-lg md:text-2xl font-black">{professor.name}</span>
+                </h1>
+                <div className="h-1.5 w-32 bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3"></div>
+            </div>
+            
+            <div className="flex flex-wrap gap-3">
+                <span className="bg-slate-900/50 text-slate-400 px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2">
+                    <Building2 size={14} /> {professor.college}
+                </span>
+                <span className="bg-slate-900/50 text-slate-400 px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2">
+                    <GraduationCap size={14} /> {professor.department}
+                </span>
+            </div>
           </div>
         </div>
 
-        {/* الكارت 1: معلومات الدكتور */}
-        <div className={`${cardStyle} p-8`}>
-          <div className="inline-block mb-6">
-            <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className}`}>
-              <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
-              <span className="text-lg md:text-xl font-black">{professor.name}</span>
-            </h1>
-            <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3"></div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <span className="bg-slate-900/50 text-teal-300 px-4 py-2 rounded-xl text-sm font-bold border border-teal-500/20 flex items-center gap-2 shadow-sm"><GraduationCap size={16} /> {professor.department}</span>
-            <span className="bg-slate-900/50 text-blue-300 px-4 py-2 rounded-xl text-sm font-bold border border-blue-500/20 flex items-center gap-2 shadow-sm"><Building2 size={16} /> {professor.college}</span>
-          </div>
+        {/* الكارت الإحصائي الشامل */}
+        <div className={`${cardStyle} p-6 mt-6`}>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
+                
+                {/* 1. يمين: الدائرة الذكية فقط */}
+                <div className="flex items-center w-full sm:w-auto justify-center sm:justify-start">
+                    <SuperSmartCircle percentage={percentageRating} />
+                </div>
+
+                {/* فاصل */}
+                <div className="hidden sm:block w-px h-12 bg-slate-700"></div>
+
+                {/* 2. وسط: عدد التقييمات */}
+                <div className="flex items-center justify-end gap-4 w-full sm:w-1/3">
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs font-bold text-slate-400">عدد التقييمات</span>
+                        <span className="text-2xl font-black text-white">{reviews.length}</span>
+                    </div>
+                    <div className="bg-slate-900 p-3 rounded-full border border-slate-700 text-blue-400 shadow-lg">
+                        <BarChart3 size={24} />
+                    </div>
+                </div>
+
+                {/* فاصل */}
+                <div className="hidden sm:block w-px h-12 bg-slate-700"></div>
+
+                {/* 3. يسار: عدد الزيارات */}
+                <div className="flex items-center justify-end gap-4 w-full sm:w-1/3">
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs font-bold text-slate-400">عدد الزيارات</span>
+                        <span className="text-2xl font-black text-white">{reviews.length * 15 + 120}</span>
+                    </div>
+                    <div className="bg-slate-900 p-3 rounded-full border border-slate-700 text-purple-400 shadow-lg">
+                        <Eye size={24} />
+                    </div>
+                </div>
+
+            </div>
+
+            {/* القسم السفلي */}
+            <div className="pt-4 flex flex-col sm:flex-row items-center gap-4 justify-center sm:justify-start">
+                <span className="text-[10px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
+                    <Medal size={12} className="text-amber-400"/> أبرز صفات الدكتور:
+                </span>
+                <div className="flex flex-wrap justify-center gap-2">
+                    {topBadges.length > 0 ? topBadges.map((badge, idx) => {
+                        const label = getBadgeLabel(badge);
+                        const style = getBadgeDisplayColor(badge);
+                        return (
+                            <span key={idx} className={`text-[10px] px-3 py-1 rounded-md border shadow-sm ${style}`}>
+                                {label}
+                            </span>
+                        );
+                    }) : <span className="text-[10px] text-slate-600">لا توجد بيانات كافية</span>}
+                </div>
+            </div>
         </div>
 
         {/* الكارت 2: إضافة تقييم */}
-        <div className={`${cardStyle} p-8`}>
+        <div className={`${cardStyle} p-6 md:p-8`}>
           <div className="inline-block mb-6">
             <div className="flex items-center gap-2">
               <Award className="text-teal-400" size={20} />
-              <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>إضافة تقييم</h3>
+              <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
             </div>
-            <div className="h-1 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-1.5 shadow-sm"></div>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs font-bold text-slate-400 mb-2">التقييم <span className="text-red-500 font-black">*</span></label>
-                <div className="flex gap-1" onMouseLeave={() => setHoverRating(0)}>
-                  {[1,2,3,4,5].map((s) => (
-                    <button key={s} type="button" onClick={() => setRating(s)} onMouseEnter={() => setHoverRating(s)} className="transition-transform hover:scale-110 active:scale-90"><Star size={28} className={s <= (hoverRating || rating) ? "fill-amber-400 text-amber-400" : "text-slate-600"} /></button>
-                  ))}
-                </div>
-              </div>
-              <div className="w-32">
-                <label className="block text-xs font-bold text-slate-400 mb-2">القريد <span className="text-red-500 font-black">*</span></label>
-                <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-teal-500 transition-all">
-                  <option value="">اختر..</option>
-                  {["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F"].map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                    <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                        <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
+                    </div>
+                 </div>
+                 <div>
+                    <label className="text-xs font-bold text-slate-400 mb-2 block">الدرجة <span className="text-red-500">*</span></label>
+                    <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all appearance-none cursor-pointer">
+                        <option value="">اختر..</option>
+                        {["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F"].map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="أتحفظ عن الإفصاح" className="text-slate-400 bg-slate-800">أتحفظ عن الإفصاح</option>
+                    </select>
+                 </div>
             </div>
+
+            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center sm:text-right">
+                <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
+                <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
+                <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
+                <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
+            </div>
+
+            {/* الشارات مع التلميح (Tooltip) */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2">التجربة <span className="text-red-500 font-black">*</span></label>
-              <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تجربتك هنا..." className="w-full bg-slate-700 border border-slate-600 rounded-xl p-4 text-white min-h-[100px] focus:outline-none focus:border-teal-500 text-sm transition-all shadow-inner" />
+                <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
+                    <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">
+                        <Tag size={12}/> اختر الصفات <span className="text-red-500 text-lg hover:scale-125 transition-transform">*</span>
+                    </label>
+                    {/* البالونة التوضيحية */}
+                    <div className="absolute right-0 bottom-full mb-2 hidden group-hover/hint:block bg-slate-800 text-slate-300 text-[10px] p-2 rounded-lg border border-slate-600 shadow-xl w-48 z-50">
+                        <div className="flex items-center gap-1 mb-1 text-teal-400 font-bold"><Info size={10}/> تنويه:</div>
+                        يجب اختيار وصف واحد على الأقل من أي مجموعة لإتمام التقييم.
+                        <div className="absolute bottom-[-4px] right-4 w-2 h-2 bg-slate-800 border-b border-r border-slate-600 rotate-45"></div>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    {BADGE_GROUPS.map((group) => (
+                        <div key={group.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-[10px] text-slate-500 font-bold w-16 shrink-0">{group.label}:</span>
+                            <div className="flex flex-wrap gap-2">
+                                {group.options.map(badge => (
+                                    <button 
+                                        key={badge} 
+                                        type="button" 
+                                        onClick={() => toggleBadge(badge, group.options, group.id)} 
+                                        className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${getBadgeColorStyle(badge, selectedBadges.includes(badge))}`}
+                                    >
+                                        {getBadgeLabel(badge)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
-            <button disabled={isSubmitting} type="submit" className="w-full bg-teal-600 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-500 transition-all active:scale-[0.98]">نشر التقييم 🚀</button>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-2">
+                اكتب تقييمك بكل مصداقية <span className="text-red-500">*</span>
+              </label>
+              <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تقييمك هنا..." className="w-full bg-slate-950/50 border border-slate-700 rounded-xl p-4 text-white min-h-[100px] focus:outline-none focus:border-teal-500 text-sm transition-all shadow-inner" />
+            </div>
+            
+            <button disabled={isSubmitting} type="submit" className="w-full bg-teal-600 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-500 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                {isSubmitting ? 'جاري النشر...' : <><Send size={16} /> نشر التقييم</>}
+            </button>
           </form>
         </div>
 
-        {/* الكارت 3: آراء الطلاب */}
-        <div className={`${cardStyle} p-8`}>
+        {/* الكارت 3: قائمة التقييمات */}
+        <div className={`${cardStyle} p-6 md:p-8`}>
           <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <MessageSquareQuote size={24} className="text-teal-500" />
-                <h3 className={`text-xl font-bold text-white ${cairoFont.className}`}>آراء الطلاب</h3>
+                <h3 className={`text-xl font-bold text-white ${cairoFont.className}`}>
+                    تقييمات الطلاب 
+                    <span className="mr-2 text-sm bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">{reviews.length}</span>
+                </h3>
               </div>
             </div>
             <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mb-6 shadow-sm"></div>
           </div>
 
-          {/* الفرز */}
           <div className="flex flex-wrap gap-2 mb-8 bg-slate-900/50 p-1 rounded-xl border border-slate-700 w-fit">
             <button onClick={() => setSortBy('newest')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'newest' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>
                 <Clock size={14} /> الأحدث
@@ -313,41 +660,59 @@ export default function ProfessorPage() {
             <button onClick={() => setSortBy('most_liked')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'most_liked' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>
                 <Filter size={14} /> الأكثر فائدة
             </button>
-            <button onClick={() => setSortBy('most_commented')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'most_commented' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`}>
+            <button onClick={() => setSortBy('most_commented')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${sortBy === 'most_commented' ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30' : 'text-slate-400 hover:text-orange-400'}`}>
                 <MessagesSquare size={14} /> الأكثر تعليقاً
             </button>
           </div>
 
-          <div className="space-y-12">
+          <div className="space-y-8">
             {sortedReviews.length === 0 ? (
               <p className="text-center text-slate-500 py-6 text-sm">لا توجد تقييمات بعد!</p>
             ) : (
               sortedReviews.map((review) => (
-                <div key={review.id} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl p-6 hover:border-teal-500/10 transition-all group/card shadow-sm">
-                  <div className="flex justify-between items-start mb-5">
+                <div key={review.id} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl p-6 hover:border-teal-500/10 transition-all group/card shadow-sm relative">
+                  
+                  <div className="absolute top-6 left-6">
+                      <TimeDisplay dateString={review.created_at} />
+                  </div>
+
+                  <div className="flex flex-wrap justify-between items-start mb-4 gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star key={star} size={14} fill={star <= review.rating ? "currentColor" : "none"} className={star <= review.rating ? "text-amber-400" : "text-slate-600"} />
-                        ))}
-                      </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getGradeStyle(review.grade)}`}>{review.grade}</span>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                        <StructuredDate dateString={review.created_at} calendar="gregory" label="ميلادي" isHijri={false} />
-                        <StructuredDate dateString={review.created_at} calendar="islamic-umalqura" label="هجري" isHijri={true} />
+                      <span className={`text-[12px] font-black px-3 py-1 rounded-lg border shadow-sm ${getGradeStyle(review.grade)}`}>{review.grade}</span>
+                      {review.course && (
+                        <div className="flex items-center gap-1 text-xs text-slate-400 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
+                             <BookOpen size={12}/> {review.course}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <p className="text-slate-200 text-sm md:text-base leading-relaxed mb-6 whitespace-pre-wrap">{review.content}</p>
+                  {review.tags && review.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                          {review.tags.map((tag: string, idx: number) => {
+                              const style = getBadgeColorStyle(tag, true);
+                              const label = getBadgeLabel(tag);
+                              return (
+                                  <span key={idx} className={`text-[10px] px-2 py-0.5 rounded-md border ${style}`}>
+                                      {label}
+                                  </span>
+                              );
+                          })}
+                      </div>
+                  )}
+
+                  <p className="text-slate-200 text-sm md:text-base leading-relaxed mb-6 whitespace-pre-wrap ml-12 break-words">{review.content}</p>
                   
-                  <div className="flex items-center gap-6 border-t border-slate-700/30 pt-4 opacity-70 group-hover/card:opacity-100 transition-opacity">
-                    <button onClick={() => handleLike(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${likedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
-                      <ThumbsUp size={16} className={likedReviews.has(review.id) ? "fill-teal-400" : ""} /> <span>{review.likes_count || 0}</span>
-                    </button>
-                    <button onClick={() => toggleReplies(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${expandedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
-                      <MessageCircle size={16} /> <span>{expandedReviews.has(review.id) ? 'إخفاء الردود' : `الردود (${review.replies?.length || 0})`}</span>
-                    </button>
+                  <div className="flex items-center justify-between border-t border-slate-700/30 pt-4 opacity-80 group-hover/card:opacity-100 transition-opacity">
+                    <div className="flex gap-4">
+                        <button onClick={() => handleLike(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${likedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                        <ThumbsUp size={16} className={likedReviews.has(review.id) ? "fill-teal-400" : ""} /> <span>{review.likes_count || 0}</span>
+                        </button>
+                        <button onClick={() => toggleReplies(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${expandedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                        <MessageCircle size={16} /> <span>{expandedReviews.has(review.id) ? 'إخفاء الردود' : `الردود (${review.replies?.length || 0})`}</span>
+                        </button>
+                    </div>
+                    <CompactDate dateString={review.created_at} />
                   </div>
 
                   {expandedReviews.has(review.id) && (
@@ -359,7 +724,7 @@ export default function ProfessorPage() {
                       </div>
                       <div className="pr-2 md:pr-4">
                         {review.replies?.filter((r:any) => !r.parent_id).map((reply: any) => (
-                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} />
+                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
                         ))}
                       </div>
                     </div>

@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
-import { Search, Plus, LayoutGrid, ArrowRight, X, Star, Trophy } from 'lucide-react';
+import { Search, Plus, LayoutGrid, ArrowRight, X, Star, Trophy, BookOpen } from 'lucide-react'; // أضفنا BookOpen
 
+// قائمة الكليات
 const COLLEGES = [
   "كلية علوم الحاسب والمعلومات",
   "كلية إدارة الأعمال",
@@ -16,22 +17,39 @@ const COLLEGES = [
   "السنة التحضيرية"
 ];
 
+// 🔥 قائمة المقررات (أمثلة) - تقدر تضيف موادك هنا
+const COURSES = [
+  "مبادئ المحاسبة (1)",
+  "مبادئ المحاسبة (2)",
+  "محاسبة التكاليف",
+  "الفيزياء العامة",
+  "تفاضل وتكامل (1)",
+  "الثقافة الإسلامية (سلم)",
+  "التحرير العربي (عرب)",
+  "لغة إنجليزية",
+  "مقدمة في البرمجة",
+  "اقتصاد جزئي",
+  "إدارة مالية"
+];
+
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [professors, setProfessors] = useState<any[]>([]);
-  const [topProfessors, setTopProfessors] = useState<any[]>([]); // حالة لحفظ أفضل الدكاترة
+  const [topProfessors, setTopProfessors] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  
+  // حالات القوائم
+  const [showCollegesMenu, setShowCollegesMenu] = useState(false);
+  const [showCoursesMenu, setShowCoursesMenu] = useState(false); // حالة قائمة المقررات
 
-  // --- جلب أفضل الدكاترة عند تحميل الصفحة ---
+  // --- جلب أفضل الدكاترة ---
   useEffect(() => {
     const fetchTopProfessors = async () => {
-      // هنا نجيب الدكاترة ونرتبهم حسب التقييم (مؤقتاً نجيب أول 5، لاحقاً نضيف order by rating)
       const { data } = await supabase
         .from('professors')
         .select('*')
-        .limit(5); // جلب 5 دكاترة
+        .limit(5);
       
       if (data) setTopProfessors(data);
     };
@@ -43,11 +61,15 @@ export default function Home() {
     if (!term.trim()) return;
     setIsSearching(true);
     setHasSearched(true);
-    setShowMenu(false);
+    // نسكر القوائم أول ما يبدأ بحث
+    setShowCollegesMenu(false);
+    setShowCoursesMenu(false);
     setSearchTerm(term);
 
     const cleanTerm = term.replace(/^د\./, '').replace(/^د\s/, '').trim();
 
+    // ملاحظة: هنا بيبحث عن اسم المادة في (الاسم، الكلية، القسم)
+    // يفضل مستقبلاً تضيف عمود "courses" في قاعدة البيانات للدقة
     const { data, error } = await supabase
       .from('professors')
       .select('*')
@@ -61,6 +83,17 @@ export default function Home() {
     setIsSearching(false);
   };
 
+  // دوال للتحكم في فتح القوائم (عشان ما يفتحون فوق بعض)
+  const toggleColleges = () => {
+    setShowCollegesMenu(!showCollegesMenu);
+    setShowCoursesMenu(false);
+  };
+
+  const toggleCourses = () => {
+    setShowCoursesMenu(!showCoursesMenu);
+    setShowCollegesMenu(false);
+  };
+
   const handleSearchClick = () => executeSearch(searchTerm);
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') executeSearch(searchTerm); };
   const clearSearch = () => { setHasSearched(false); setSearchTerm(''); setProfessors([]); };
@@ -70,9 +103,9 @@ export default function Home() {
       
       {/* خلفية جمالية */}
       <div className="fixed top-[-10%] left-[-10%] w-96 h-96 bg-teal-600/10 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob pointer-events-none"></div>
-      <div className="fixed bottom-[-20%] right-[-10%] w-96 h-96 bg-blue-600/10 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob animation-delay-2000 pointer-events-none"></div>
+      <div className="fixed bottom-[-20%] right-[-10%] w-96 h-96 bg-slate-800/10 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob animation-delay-2000 pointer-events-none"></div>
 
-      {/* ✨ القائمة الجانبية: أفضل الدكاترة (تظهر في الشاشات الكبيرة فقط) ✨ */}
+      {/* ✨ القائمة الجانبية: أفضل الدكاترة (للشاشات الكبيرة) ✨ */}
       <div className="hidden xl:block fixed right-8 top-1/2 -translate-y-1/2 w-72 bg-slate-900/80 border border-slate-700/50 backdrop-blur-md rounded-3xl p-5 shadow-2xl z-40 animate-fade-in-right">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-700/50">
           <Trophy className="text-amber-400" size={20} />
@@ -80,7 +113,6 @@ export default function Home() {
             أفضل الدكاترة
           </h2>
         </div>
-        
         <div className="space-y-3">
           {topProfessors.length > 0 ? (
             topProfessors.map((prof, index) => (
@@ -90,7 +122,6 @@ export default function Home() {
                 className="group flex items-center justify-between p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-teal-500/30 rounded-xl transition-all duration-300 cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  {/* رقم الترتيب */}
                   <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold ${index === 0 ? 'bg-amber-500/20 text-amber-400' : index === 1 ? 'bg-slate-400/20 text-slate-300' : index === 2 ? 'bg-orange-700/20 text-orange-400' : 'bg-slate-800 text-slate-500'}`}>
                     {index + 1}
                   </span>
@@ -99,7 +130,6 @@ export default function Home() {
                     <p className="text-[9px] text-slate-500 truncate max-w-[100px]">{prof.department}</p>
                   </div>
                 </div>
-                {/* التقييم (مؤقت) */}
                 <div className="flex items-center gap-1 bg-slate-900/80 px-1.5 py-0.5 rounded-md border border-slate-700">
                   <span className="text-[10px] font-bold text-amber-400">5.0</span>
                   <Star size={8} className="text-amber-400 fill-amber-400" />
@@ -112,95 +142,126 @@ export default function Home() {
         </div>
       </div>
 
-      {/* المحتوى الرئيسي (لم يتغير) */}
-      <main className="flex-1 w-full max-w-2xl mx-auto p-6 flex flex-col justify-center relative z-10">
+      {/* المحتوى الرئيسي */}
+      <main className="flex-1 w-full max-w-lg mx-auto p-6 flex flex-col justify-start pt-12 relative z-10">
         
-        {/* عنوان الصفحة */}
-        <div className={`transition-all duration-500 ${hasSearched ? 'mt-4 mb-6' : 'mt-2 mb-10 text-center'}`}>
-          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-emerald-300 mb-2 tracking-tight">
+        {/* 1. عنوان الصفحة */}
+        <div className={`transition-all duration-500 text-center ${hasSearched ? 'mb-4' : 'mb-8'}`}>
+          <h1 className="text-2xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-emerald-300 tracking-widest leading-relaxed">
             {hasSearched ? 'نتائج البحث' : 'دليلك نحو الأفضل'}
           </h1>
         </div>
 
-        {/* منطقة البحث والأزرار */}
-        <div className="relative mb-6 z-50">
-          <div className="flex gap-2.5 items-center justify-between h-12">
+        {/* الحاوية الرئيسية للبحث والأزرار */}
+        <div className="w-full space-y-3 mb-8">
             
-            {hasSearched && (
-              <button 
-                onClick={clearSearch}
-                className="w-12 h-12 flex-none flex items-center justify-center bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-red-400 hover:bg-slate-700 transition-all duration-300 active:scale-95 animate-fade-in-down"
-                title="مسح البحث"
-              >
-                 <ArrowRight size={20} className="rotate-180" />
-              </button>
-            )}
-
-            {/* --- زر إضافة دكتور (المتمدد) --- */}
-            <Link 
-              href="/add-professor"
-              className="group flex items-center h-12 bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-teal-600 hover:border-teal-500 transition-all duration-500 ease-in-out w-12 hover:w-[130px] overflow-hidden"
-            >
-              <div className="w-12 h-12 flex items-center justify-center flex-none group-hover:rotate-90 transition-transform duration-500">
-                <Plus size={22} className="group-hover:scale-110" />
-              </div>
-              <span className="whitespace-nowrap font-bold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 -mr-1">
-                إضافة دكتور
-              </span>
-            </Link>
-
-            {/* --- زر الكليات (المتمدد) --- */}
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className={`group flex items-center h-12 bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-teal-500 transition-all duration-500 ease-in-out w-12 hover:w-[130px] overflow-hidden ${showMenu ? 'bg-teal-600 text-white border-teal-500' : ''}`}
-            >
-              <div className="w-12 h-12 flex items-center justify-center flex-none">
-                <LayoutGrid size={20} />
-              </div>
-              <span className="whitespace-nowrap font-bold text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 -mr-1">
-                تصفح الكليات
-              </span>
-            </button>
-
-            {/* مربع البحث */}
-            <div className="flex-1 h-full relative group">
+            {/* 2. مربع البحث */}
+            <div className="relative group w-full h-12">
               <div className="h-full flex bg-slate-800 rounded-xl shadow-lg border border-slate-700 group-focus-within:border-teal-500 group-focus-within:ring-2 group-focus-within:ring-teal-500/20 transition-all duration-300">
                 <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="ابحث عن دكتور..."
+                  placeholder="ابحث عن دكتور، مادة، أو تخصص..."
                   className="flex-1 h-full px-4 bg-transparent outline-none text-white placeholder-slate-400 text-sm rounded-xl min-w-0"
                 />
                 <button 
                   onClick={handleSearchClick}
                   disabled={isSearching}
-                  className="h-full px-4 text-slate-400 hover:text-teal-400 transition-colors"
+                  className="h-full px-4 text-slate-400 hover:text-teal-400 transition-colors border-r border-slate-700/50"
                 >
                   {isSearching ? <span className="animate-spin block text-teal-400">↻</span> : <Search size={20} />}
                 </button>
-              </div>
-            </div>
-          </div>
-
-          {/* القائمة المنسدلة */}
-          {showMenu && (
-            <div className="absolute top-full right-0 mt-3 w-72 bg-slate-800 rounded-2xl shadow-2xl shadow-black/50 border border-slate-700 p-4 animate-fade-in-down z-50">
-              <div className="flex items-center justify-between mb-3 px-1 border-b border-slate-700 pb-2">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">تصفح بالكليات</p>
-                <button onClick={() => setShowMenu(false)} className="text-slate-500 hover:text-red-400 transition-colors"><X size={14} /></button>
-              </div>
-              <div className="max-h-60 overflow-y-auto pl-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-600">
-                {COLLEGES.map((college, index) => (
-                  <button key={index} onClick={() => executeSearch(college)} className="flex items-center gap-3 w-full text-right px-3 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-teal-400 rounded-xl transition-all duration-200 group">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-teal-500 transition-colors"></span>
-                    {college}
+                {hasSearched && (
+                  <button 
+                    onClick={clearSearch}
+                    className="h-full px-3 text-red-400 hover:text-red-300 transition-colors border-r border-slate-700/50"
+                  >
+                    <X size={18} />
                   </button>
-                ))}
+                )}
               </div>
             </div>
-          )}
+
+            {/* 3. الأزرار الرأسية */}
+            <div className="flex flex-col gap-3 w-full">
+                
+                {/* زر إضافة دكتور */}
+                <Link 
+                  href="/add-professor"
+                  className="flex items-center justify-between w-full h-12 px-4 bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-teal-600 hover:border-teal-500 transition-all duration-300 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                        <Plus size={18} />
+                    </div>
+                    <span className="font-bold text-sm">إضافة دكتور</span>
+                  </div>
+                  <ArrowRight size={16} className="text-slate-500 group-hover:text-white rotate-180 transition-colors" />
+                </Link>
+
+                {/* زر تصفح الكليات */}
+                <div className="relative w-full">
+                    <button 
+                      onClick={toggleColleges}
+                      className={`flex items-center justify-between w-full h-12 px-4 bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-teal-500 transition-all duration-300 group ${showCollegesMenu ? 'bg-teal-600 text-white border-teal-500' : ''}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                            <LayoutGrid size={18} />
+                        </div>
+                        <span className="font-bold text-sm">تصفح الكليات</span>
+                      </div>
+                      <ArrowRight size={16} className={`text-slate-500 group-hover:text-white rotate-180 transition-colors ${showCollegesMenu ? 'text-white rotate-90' : ''}`} />
+                    </button>
+
+                    {/* قائمة الكليات */}
+                    {showCollegesMenu && (
+                        <div className="absolute top-full right-0 left-0 mt-2 bg-slate-800 rounded-2xl shadow-2xl shadow-black/50 border border-slate-700 p-2 animate-fade-in-down z-50">
+                          <div className="max-h-60 overflow-y-auto pl-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-600">
+                            {COLLEGES.map((college, index) => (
+                              <button key={index} onClick={() => executeSearch(college)} className="flex items-center gap-3 w-full text-right px-3 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-teal-400 rounded-xl transition-all duration-200 group">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-teal-500 transition-colors"></span>
+                                {college}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 🔥 زر تصفح المقررات (الجديد) 🔥 */}
+                <div className="relative w-full">
+                    <button 
+                      onClick={toggleCourses}
+                      className={`flex items-center justify-between w-full h-12 px-4 bg-slate-800 rounded-xl shadow-lg border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-teal-500 transition-all duration-300 group ${showCoursesMenu ? 'bg-teal-600 text-white border-teal-500' : ''}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                            <BookOpen size={18} />
+                        </div>
+                        <span className="font-bold text-sm">تصفح المقررات</span>
+                      </div>
+                      <ArrowRight size={16} className={`text-slate-500 group-hover:text-white rotate-180 transition-colors ${showCoursesMenu ? 'text-white rotate-90' : ''}`} />
+                    </button>
+
+                    {/* قائمة المقررات */}
+                    {showCoursesMenu && (
+                        <div className="absolute top-full right-0 left-0 mt-2 bg-slate-800 rounded-2xl shadow-2xl shadow-black/50 border border-slate-700 p-2 animate-fade-in-down z-50">
+                          <div className="max-h-60 overflow-y-auto pl-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-600">
+                            {COURSES.map((course, index) => (
+                              <button key={index} onClick={() => executeSearch(course)} className="flex items-center gap-3 w-full text-right px-3 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-teal-400 rounded-xl transition-all duration-200 group">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-teal-500 transition-colors"></span>
+                                {course}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                    )}
+                </div>
+
+            </div>
         </div>
 
         {/* النتائج */}
@@ -228,11 +289,12 @@ export default function Home() {
               <div className="text-center py-12 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                 <div className="text-6xl mb-4 opacity-30 grayscale">🔍</div>
                 <p className="text-slate-400 font-medium">ما لقينا نتائج</p>
+                <p className="text-slate-500 text-xs mt-2">جرب تبحث باسم دكتور آخر أو مادة مختلفة</p>
               </div>
             )}
           </div>
         ) : (
-          <div className="mt-10"></div>
+          <div className="mt-2"></div>
         )}
       </main>
     </div>
