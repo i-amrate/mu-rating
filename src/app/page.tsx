@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useUniversity } from '../context/UniversityContext';
 import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, GraduationCap, ChevronLeft, ChevronDown, ChevronUp, User, Loader2 } from 'lucide-react';
 import { Amiri } from 'next/font/google';
+import confetti from 'canvas-confetti'; // 🔥 استيراد الطراطيع
 
 const amiriFont = Amiri({ 
   subsets: ['arabic'],
@@ -22,8 +23,6 @@ const UNIVERSITY_CONFIG: Record<string, { fullName: string, color: string, colle
   'kau': { fullName: "جامعة الملك عبدالعزيز", color: '#65a30d', colleges: [] }
 };
 
-const DEFAULT_COLLEGES: string[] = []; 
-
 const getSmartColor = (percentage: number) => {
   if (percentage >= 90) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)]';
   if (percentage >= 75) return 'text-green-400 bg-green-500/10 border-green-500/20';
@@ -31,12 +30,6 @@ const getSmartColor = (percentage: number) => {
   if (percentage >= 50) return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
   if (percentage >= 30) return 'text-red-400 bg-red-500/10 border-red-500/20';
   return 'text-red-600 bg-red-900/20 border-red-900/30';
-};
-
-const getBadgeStyle = (badge: string) => {
-  if (["شرييح", "متعاون", "لين بالتحضير", "اختباراته سهله", "رهييب بالمشروع", "محتررم", "عسسلل", "اخلاق"].includes(badge)) return 'bg-emerald-500/5 text-emerald-400 border-emerald-500/10';
-  if (["شرحه سيئ", "غير متعاون", "شدييد بالتحضير", "اختباراته صععبه", "شديد بالمشروع", "غثيث", "وقح"].includes(badge)) return 'bg-red-500/5 text-red-400 border-red-500/10';
-  return 'bg-slate-800 text-slate-400 border-slate-700';
 };
 
 export default function Home() {
@@ -51,8 +44,6 @@ export default function Home() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isEliteOpen, setIsEliteOpen] = useState(false); 
   const [isCollegesOpen, setIsCollegesOpen] = useState(false);
-  const [showMoreProfs, setShowMoreProfs] = useState(false);
-  const [showMoreColleges, setShowMoreColleges] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showCollegesMenu, setShowCollegesMenu] = useState(false);
@@ -62,6 +53,34 @@ export default function Home() {
   const currentConfig = selectedUni ? UNIVERSITY_CONFIG[selectedUni.slug?.toLowerCase()] : null;
   const primaryColor = currentConfig?.color || '#14b8a6';
   const universityName = currentConfig?.fullName || selectedUni?.name || 'الجامعة';
+
+  // 🔥 تأثير طراطيع الافتتاح 🔥
+  useEffect(() => {
+    const duration = 4 * 1000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 2,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.6 },
+        colors: ['#2dd4bf', '#fbbf24', '#ffffff']
+      });
+      confetti({
+        particleCount: 2,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.6 },
+        colors: ['#2dd4bf', '#fbbf24', '#ffffff']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -94,7 +113,7 @@ export default function Home() {
         const { data: reviews } = await supabase.from('reviews').select('professor_id, rating, course, tags').in('professor_id', professorIds);
         
         const profStats: Record<string, { total: number, count: number, tags: string[] }> = {};
-        const courseMap: Record<string, { total: number, count: number }> = {}; // 🔥 لحساب متوسط المقررات
+        const courseMap: Record<string, { total: number, count: number }> = {}; 
 
         if (reviews) {
           reviews.forEach(r => {
@@ -103,7 +122,6 @@ export default function Home() {
             profStats[r.professor_id].count += 1;
             if (r.tags) profStats[r.professor_id].tags.push(...r.tags);
 
-            // 🔥 تجميع المقررات ديناميكياً من قاعدة البيانات (التقييمات) 🔥
             if (r.course && r.course.trim()) {
               const cName = r.course.trim();
               if (!courseMap[cName]) courseMap[cName] = { total: 0, count: 0 };
@@ -137,7 +155,6 @@ export default function Home() {
           percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
         })).sort((a, b) => b.percent - a.percent));
 
-        // 🔥 تحديث قائمة المقررات المستخرجة طبق الأصل من منطق الكليات 🔥
         setCoursesWithStats(Object.entries(courseMap).map(([name, s]) => ({ 
           name, 
           avg: Math.round(s.total / s.count) 
@@ -216,7 +233,6 @@ export default function Home() {
                             </div>
                         </div>
                     )}
-                    {/* 🔥 قائمة المقررات المحدثة طبق الأصل من منطق الكليات 🔥 */}
                     {showCoursesMenu && (
                         <div className="absolute top-0 right-0 left-0 mt-1 bg-slate-900 border border-slate-700 rounded-2xl p-4 z-50 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
                             <input placeholder="بحث في المقررات..." value={courseSearchTerm} onChange={(e) => setCourseSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white mb-3 outline-none focus:border-teal-500 transition-all" />
