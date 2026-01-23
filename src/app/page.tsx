@@ -310,6 +310,28 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* 🔥 الفوتر الاحترافي (رسالة الاطلاق + الحقوق) 🔥 */}
+      <footer className="w-full py-8 mt-auto relative z-10 border-t border-slate-800/50 bg-slate-900/20 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-4 text-center">
+            
+            {/* الرسالة الخاصة مع الاحتفال والغمزة 😉 */}
+            <div className="space-y-1.5 animate-pulse">
+                <p className="text-slate-300 text-xs md:text-sm font-medium flex items-center justify-center gap-2">
+                    تم إطلاق هذا الموقع في يوم 23 يناير <span className="text-lg">🎉</span>
+                </p>
+                <p className="text-slate-500 text-[10px] md:text-xs">
+                    لا تنسى تنشر الموقع لاخوياك وللدفعه الي بعدك عشان تضمن وضعك <span className="text-sm">😉</span>
+                </p>
+            </div>
+
+            {/* حقوق النشر لزيادة الهيبة */}
+            <p className="text-slate-700 text-[10px] dir-ltr font-mono mt-2 opacity-50">
+                © 2026 Morshed Platform. All rights reserved.
+            </p>
+        </div>
+      </footer>
+
     </div>
   );
-}  
+}
