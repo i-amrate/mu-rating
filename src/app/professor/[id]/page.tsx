@@ -1,9 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info, Percent } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -15,7 +15,13 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 🔥 تصنيف الشارات 🔥
+// 🔥 ترتيب الأولوية للألوان (لفرز الشارات) 🔥
+const BADGE_PRIORITY: Record<string, number> = {
+  'positive': 1,
+  'neutral': 2,
+  'negative': 3
+};
+
 const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
   "شرييح": 'positive', "شرحه عادي": 'neutral', "شرحه سيئ": 'negative',
   "متعاون": 'positive', "غير متعاون": 'negative', 
@@ -35,6 +41,16 @@ const BADGE_GROUPS = [
   { id: 'exams', label: 'الاختبارات', options: ["اختباراته سهله", "اختباراته وسط", "اختباراته صععبه"] },
   { id: 'personality', label: 'الشخصية', options: ["محتررم", "عسسلل", "شخصية_طبيعية", "غثيث", "وقح"] },
 ];
+
+// دالة لترتيب الشارات (أخضر -> رمادي -> أحمر)
+const sortBadges = (tags: string[]) => {
+  if (!tags) return [];
+  return [...tags].sort((a, b) => {
+    const typeA = BADGE_TYPES[a] || 'neutral';
+    const typeB = BADGE_TYPES[b] || 'neutral';
+    return BADGE_PRIORITY[typeA] - BADGE_PRIORITY[typeB];
+  });
+};
 
 const getBadgeLabel = (badge: string) => {
   if (badge.includes('_طبيعي') || badge === 'مشروعه طبيعي' || badge === 'اختباراته وسط' || badge === 'شرحه عادي') return "طبيعي";
@@ -73,18 +89,14 @@ const getBadgeDisplayColor = (badge: string) => {
     }
 }
 
-const calculateProfessorGrade = (percentage: number) => {
-    if (percentage >= 95) return 'A+';
-    if (percentage >= 90) return 'A';
-    if (percentage >= 85) return 'B+';
-    if (percentage >= 80) return 'B';
-    if (percentage >= 75) return 'C+';
-    if (percentage >= 70) return 'C';
-    if (percentage >= 60) return 'D';
-    return 'F';
+const getReviewPercentStyle = (percentage: number) => {
+  if (percentage >= 90) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+  if (percentage >= 80) return 'text-lime-400 bg-lime-500/10 border-lime-500/20';
+  if (percentage >= 70) return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
+  if (percentage >= 60) return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+  return 'text-red-400 bg-red-500/10 border-red-500/20';
 };
 
-// --- دوال التاريخ والوقت ---
 const getDateParts = (dateString: string, calendar: 'islamic-umalqura' | 'gregory') => {
   const date = new Date(dateString);
   const formatter = new Intl.DateTimeFormat('ar-SA', {
@@ -122,13 +134,12 @@ const CompactDate = ({ dateString }: { dateString: string }) => {
 const TimeDisplay = ({ dateString }: { dateString: string }) => {
     const greg = getDateParts(dateString, 'gregory');
     return (
-        <span className="text-[10px] font-mono text-slate-500 bg-slate-900/50 px-2 py-1 rounded-md border border-slate-800">
+        <span className="text-[10px] font-bold font-mono text-slate-400 border-b border-slate-600/50 pb-0.5">
             {greg.time}
         </span>
     );
 };
 
-// 🔥 الدائرة الذكية جداً 🔥
 const SuperSmartCircle = ({ percentage }: { percentage: number }) => {
   const radius = 32; 
   const circumference = 2 * Math.PI * radius;
@@ -287,6 +298,7 @@ export default function ProfessorPage() {
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   
   const [sortBy, setSortBy] = useState<'newest' | 'most_liked' | 'most_commented'>('newest');
+  const viewIncremented = useRef(false);
 
   useEffect(() => {
     const savedLikedReviews = localStorage.getItem('likedReviews');
@@ -299,6 +311,13 @@ export default function ProfessorPage() {
   async function getData() {
     const { data: prof } = await supabase.from('professors').select('*').eq('id', id).single();
     setProfessor(prof);
+    
+    // 🔥 زيادة عدد الزيارات مرة واحدة فقط عند الدخول 🔥
+    if (prof && !viewIncremented.current) {
+        viewIncremented.current = true;
+        await supabase.rpc('increment_professor_view', { row_id: prof.id });
+    }
+
     if (prof) {
       const { data: revs } = await supabase.from('reviews').select(`*, replies (*)`).eq('professor_id', prof.id).order('created_at', { ascending: false });
       setReviews(revs || []);
@@ -422,7 +441,6 @@ export default function ProfessorPage() {
         return;
     }
 
-    // 🔥 التحقق الجديد: شارة واحدة على الأقل من أي مجموعة (أكثر مرونة) 🔥
     if (selectedBadges.length === 0) {
         alert("الرجاء اختيار وصف واحد على الأقل من الشارات.");
         return;
@@ -480,12 +498,15 @@ export default function ProfessorPage() {
             <div className="inline-block">
                 <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className}`}>
                 <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
-                <span className="text-lg md:text-2xl font-black">{professor.name}</span>
+                {/* 🔥🔥 تعديل الخط الأخضر ليصبح على طول الاسم تماماً 🔥🔥 */}
+                <span className="text-lg md:text-2xl font-black relative">
+                    {professor.name}
+                    <span className="absolute bottom-[-6px] right-0 h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full"></span>
+                </span>
                 </h1>
-                <div className="h-1.5 w-32 bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3"></div>
             </div>
             
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 mt-2">
                 <span className="bg-slate-900/50 text-slate-400 px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2">
                     <Building2 size={14} /> {professor.college}
                 </span>
@@ -500,16 +521,10 @@ export default function ProfessorPage() {
         <div className={`${cardStyle} p-6 mt-6`}>
             
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
-                
-                {/* 1. يمين: الدائرة الذكية فقط */}
                 <div className="flex items-center w-full sm:w-auto justify-center sm:justify-start">
                     <SuperSmartCircle percentage={percentageRating} />
                 </div>
-
-                {/* فاصل */}
                 <div className="hidden sm:block w-px h-12 bg-slate-700"></div>
-
-                {/* 2. وسط: عدد التقييمات */}
                 <div className="flex items-center justify-end gap-4 w-full sm:w-1/3">
                     <div className="flex flex-col items-end">
                         <span className="text-xs font-bold text-slate-400">عدد التقييمات</span>
@@ -519,24 +534,19 @@ export default function ProfessorPage() {
                         <BarChart3 size={24} />
                     </div>
                 </div>
-
-                {/* فاصل */}
                 <div className="hidden sm:block w-px h-12 bg-slate-700"></div>
-
-                {/* 3. يسار: عدد الزيارات */}
                 <div className="flex items-center justify-end gap-4 w-full sm:w-1/3">
                     <div className="flex flex-col items-end">
                         <span className="text-xs font-bold text-slate-400">عدد الزيارات</span>
-                        <span className="text-2xl font-black text-white">{reviews.length * 15 + 120}</span>
+                        {/* 🔥 عرض عدد الزيارات الحقيقي 🔥 */}
+                        <span className="text-2xl font-black text-white">{professor.view_count || 0}</span>
                     </div>
                     <div className="bg-slate-900 p-3 rounded-full border border-slate-700 text-purple-400 shadow-lg">
                         <Eye size={24} />
                     </div>
                 </div>
-
             </div>
 
-            {/* القسم السفلي */}
             <div className="pt-4 flex flex-col sm:flex-row items-center gap-4 justify-center sm:justify-start">
                 <span className="text-[10px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
                     <Medal size={12} className="text-amber-400"/> أبرز صفات الدكتور:
@@ -564,7 +574,6 @@ export default function ProfessorPage() {
             </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div>
                     <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
@@ -582,28 +591,23 @@ export default function ProfessorPage() {
                     </select>
                  </div>
             </div>
-
             <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center sm:text-right">
                 <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
                 <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
                 <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
                 <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
             </div>
-
-            {/* الشارات مع التلميح (Tooltip) */}
             <div>
                 <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
                     <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">
                         <Tag size={12}/> اختر الصفات <span className="text-red-500 text-lg hover:scale-125 transition-transform">*</span>
                     </label>
-                    {/* البالونة التوضيحية */}
                     <div className="absolute right-0 bottom-full mb-2 hidden group-hover/hint:block bg-slate-800 text-slate-300 text-[10px] p-2 rounded-lg border border-slate-600 shadow-xl w-48 z-50">
                         <div className="flex items-center gap-1 mb-1 text-teal-400 font-bold"><Info size={10}/> تنويه:</div>
                         يجب اختيار وصف واحد على الأقل من أي مجموعة لإتمام التقييم.
                         <div className="absolute bottom-[-4px] right-4 w-2 h-2 bg-slate-800 border-b border-r border-slate-600 rotate-45"></div>
                     </div>
                 </div>
-
                 <div className="space-y-4">
                     {BADGE_GROUPS.map((group) => (
                         <div key={group.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -624,14 +628,12 @@ export default function ProfessorPage() {
                     ))}
                 </div>
             </div>
-
             <div>
               <label className="block text-xs font-bold text-slate-400 mb-2">
                 اكتب تقييمك بكل مصداقية <span className="text-red-500">*</span>
               </label>
               <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تقييمك هنا..." className="w-full bg-slate-950/50 border border-slate-700 rounded-xl p-4 text-white min-h-[100px] focus:outline-none focus:border-teal-500 text-sm transition-all shadow-inner" />
             </div>
-            
             <button disabled={isSubmitting} type="submit" className="w-full bg-teal-600 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-500 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                 {isSubmitting ? 'جاري النشر...' : <><Send size={16} /> نشر التقييم</>}
             </button>
@@ -670,40 +672,55 @@ export default function ProfessorPage() {
               <p className="text-center text-slate-500 py-6 text-sm">لا توجد تقييمات بعد!</p>
             ) : (
               sortedReviews.map((review) => (
-                <div key={review.id} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl p-6 hover:border-teal-500/10 transition-all group/card shadow-sm relative">
+                <div key={review.id} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl overflow-hidden hover:border-teal-500/10 transition-all group/card shadow-sm relative">
                   
-                  <div className="absolute top-6 left-6">
-                      <TimeDisplay dateString={review.created_at} />
-                  </div>
-
-                  <div className="flex flex-wrap justify-between items-start mb-4 gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className={`text-[12px] font-black px-3 py-1 rounded-lg border shadow-sm ${getGradeStyle(review.grade)}`}>{review.grade}</span>
-                      {review.course && (
-                        <div className="flex items-center gap-1 text-xs text-slate-400 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
-                             <BookOpen size={12}/> {review.course}
+                  {/* الهيدر المنفصل */}
+                  <div className="bg-slate-900/60 p-5 border-b border-slate-800">
+                      
+                      {/* الصف الأول */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                            {review.course && (
+                                <div className="flex items-center gap-1 text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                                    <BookOpen size={12}/> {review.course}
+                                </div>
+                            )}
+                            <span className={`text-[12px] font-black px-3 py-1.5 rounded-lg border shadow-sm ${getGradeStyle(review.grade)}`}>
+                                {review.grade}
+                            </span>
                         </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                            <span className={`text-[12px] font-black px-2 py-1 rounded-lg border shadow-sm flex items-center gap-0.5 ${getReviewPercentStyle((review.rating / 5) * 100)}`}>
+                                {Math.round((review.rating / 5) * 100)}<Percent size={10} strokeWidth={3} />
+                            </span>
+                            <TimeDisplay dateString={review.created_at} />
+                        </div>
+                      </div>
+
+                      {/* الصف الثاني: الشارات المرتبة */}
+                      {review.tags && review.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                              {sortBadges(review.tags).map((tag: string, idx: number) => {
+                                  const style = getBadgeColorStyle(tag, true);
+                                  const label = getBadgeLabel(tag);
+                                  return (
+                                      <span key={idx} className={`text-[10px] px-2 py-0.5 rounded-md border ${style}`}>
+                                          {label}
+                                      </span>
+                                  );
+                              })}
+                          </div>
                       )}
-                    </div>
                   </div>
 
-                  {review.tags && review.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
-                          {review.tags.map((tag: string, idx: number) => {
-                              const style = getBadgeColorStyle(tag, true);
-                              const label = getBadgeLabel(tag);
-                              return (
-                                  <span key={idx} className={`text-[10px] px-2 py-0.5 rounded-md border ${style}`}>
-                                      {label}
-                                  </span>
-                              );
-                          })}
-                      </div>
-                  )}
-
-                  <p className="text-slate-200 text-sm md:text-base leading-relaxed mb-6 whitespace-pre-wrap ml-12 break-words">{review.content}</p>
+                  {/* منطقة النص */}
+                  <div className="p-6">
+                      <p className="text-slate-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{review.content}</p>
+                  </div>
                   
-                  <div className="flex items-center justify-between border-t border-slate-700/30 pt-4 opacity-80 group-hover/card:opacity-100 transition-opacity">
+                  {/* الفوتر */}
+                  <div className="bg-slate-900/30 px-6 py-3 flex items-center justify-between border-t border-slate-800/50">
                     <div className="flex gap-4">
                         <button onClick={() => handleLike(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${likedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
                         <ThumbsUp size={16} className={likedReviews.has(review.id) ? "fill-teal-400" : ""} /> <span>{review.likes_count || 0}</span>
@@ -715,9 +732,10 @@ export default function ProfessorPage() {
                     <CompactDate dateString={review.created_at} />
                   </div>
 
+                  {/* قسم الردود */}
                   {expandedReviews.has(review.id) && (
-                    <div className="mt-6 space-y-2">
-                      <div className={`flex gap-3 items-center bg-slate-900/80 border p-3 rounded-2xl transition-all mb-6 ${activeReplyId === review.id ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-slate-800'}`}>
+                    <div className="p-6 pt-0 space-y-2 border-t border-slate-800/50 bg-slate-900/20">
+                      <div className={`mt-4 flex gap-3 items-center bg-slate-900/80 border p-3 rounded-2xl transition-all mb-6 ${activeReplyId === review.id ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-slate-800'}`}>
                         <CornerDownRight className="text-slate-600" size={18} />
                         <input value={activeReplyId === review.id ? replyContent : ''} onChange={(e) => { setActiveReplyId(review.id); setReplyContent(e.target.value); }} onFocus={() => setActiveReplyId(review.id)} placeholder="اكتب ردك هنا..." className="flex-grow bg-transparent border-none text-sm focus:outline-none text-white" onKeyDown={(e) => { if (e.key === 'Enter') submitReply(review.id); }} />
                         <button onClick={() => submitReply(review.id)} disabled={submittingReply} className="bg-teal-600 hover:bg-teal-500 text-white p-2 rounded-xl transition-all"><Send size={16} /></button>
