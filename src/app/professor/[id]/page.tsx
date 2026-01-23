@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info, Percent } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info, Percent, Sparkles, Smile, PenTool, CalendarClock, CheckCircle2 } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -15,11 +15,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 🔥 ترتيب الأولوية للألوان (لفرز الشارات) 🔥
 const BADGE_PRIORITY: Record<string, number> = {
-  'positive': 1,
-  'neutral': 2,
-  'negative': 3
+  'positive': 1, 'neutral': 2, 'negative': 3
 };
 
 const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
@@ -42,7 +39,6 @@ const BADGE_GROUPS = [
   { id: 'personality', label: 'الشخصية', options: ["محتررم", "عسسلل", "شخصية_طبيعية", "غثيث", "وقح"] },
 ];
 
-// دالة لترتيب الشارات (أخضر -> رمادي -> أحمر)
 const sortBadges = (tags: string[]) => {
   if (!tags) return [];
   return [...tags].sort((a, b) => {
@@ -62,9 +58,7 @@ const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
      if (isSelected) return 'bg-slate-600 text-white border-slate-500 shadow-lg';
      return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
   }
-
   const type = BADGE_TYPES[badge] || 'neutral';
-  
   if (isSelected) {
     switch (type) {
       case 'positive': return 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40';
@@ -192,6 +186,45 @@ const SuperSmartCircle = ({ percentage }: { percentage: number }) => {
   );
 };
 
+const StatBar = ({ label, value, icon: Icon, colorClass, bgClass }: { label: string, value: number, icon: any, colorClass: string, bgClass: string }) => {
+    const [width, setWidth] = useState(0);
+    const percentage = value > 0 ? (value / 5) * 100 : 0;
+    
+    let statusText = "غير مقيّم";
+    if (value >= 4.5) statusText = "أسطوري";
+    else if (value >= 3.5) statusText = "ممتاز";
+    else if (value >= 2.5) statusText = "جيد";
+    else if (value > 0) statusText = "سيء";
+
+    useEffect(() => {
+        const timer = setTimeout(() => setWidth(percentage), 300);
+        return () => clearTimeout(timer);
+    }, [percentage]);
+
+    return (
+        <div className="mb-4 group">
+            <div className="flex justify-between items-end mb-1.5">
+                <div className="flex items-center gap-2 text-slate-300 font-bold text-xs">
+                    <Icon size={14} className={colorClass.replace('bg-', 'text-')} /> 
+                    {label}
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">{statusText}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 rounded">{value > 0 ? value.toFixed(1) : '-'}</span>
+                </div>
+            </div>
+            <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                <div 
+                    className={`h-full rounded-full transition-all duration-[1200ms] ease-out ${bgClass} relative`}
+                    style={{ width: `${width}%` }}
+                >
+                    <div className="absolute top-0 right-0 bottom-0 w-full bg-gradient-to-l from-white/20 to-transparent"></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const getGradeStyle = (grade: string) => {
   switch (grade) {
     case 'A+': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
@@ -260,18 +293,27 @@ const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyConten
   );
 };
 
-const StarRatingInput = ({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) => (
-    <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold text-slate-400">{label}</label>
-        <div className="flex gap-0.5 justify-center sm:justify-end">
-            {[1, 2, 3, 4, 5].map((s) => (
-                <button key={s} type="button" onClick={() => onChange(s)} className="focus:outline-none transition-transform active:scale-90 hover:scale-110">
-                    <Star size={18} className={s <= value ? "fill-amber-400 text-amber-400" : "text-slate-600"} />
-                </button>
-            ))}
+// 🔥🔥 مكون النجوم الجديد: تفاعلي ويظهر كلمات 🔥🔥
+const StarRatingInput = ({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) => {
+    const ratings = ["سيء جداً", "سيء", "مقبول", "جيد", "ممتاز"];
+    return (
+        <div className="flex flex-col gap-1.5 items-center sm:items-end">
+            <label className="text-[10px] font-bold text-slate-400">{label}</label>
+            <div className="flex flex-col items-center sm:items-end gap-1">
+                <div className="flex gap-0.5 justify-center sm:justify-end">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                        <button key={s} type="button" onClick={() => onChange(s)} className="focus:outline-none transition-transform active:scale-90 hover:scale-110">
+                            <Star size={18} className={s <= value ? "fill-amber-400 text-amber-400" : "text-slate-600"} />
+                        </button>
+                    ))}
+                </div>
+                <span className={`text-[10px] font-bold transition-all duration-300 h-4 ${value > 0 ? 'opacity-100 text-teal-400' : 'opacity-0'}`}>
+                    {value > 0 ? ratings[value - 1] : ''}
+                </span>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export default function ProfessorPage() {
   const { id } = useParams();
@@ -312,7 +354,6 @@ export default function ProfessorPage() {
     const { data: prof } = await supabase.from('professors').select('*').eq('id', id).single();
     setProfessor(prof);
     
-    // 🔥 زيادة عدد الزيارات مرة واحدة فقط عند الدخول 🔥
     if (prof && !viewIncremented.current) {
         viewIncremented.current = true;
         await supabase.rpc('increment_professor_view', { row_id: prof.id });
@@ -329,6 +370,17 @@ export default function ProfessorPage() {
   const percentageRating = reviews.length > 0 
     ? Math.round((reviews.reduce((acc, rev) => acc + rev.rating, 0) / (reviews.length * 5)) * 100)
     : 0;
+
+  const calculateAvg = (key: string) => {
+    const validReviews = reviews.filter((r: any) => r[key] > 0);
+    if (validReviews.length === 0) return 0;
+    return validReviews.reduce((acc: any, r: any) => acc + r[key], 0) / validReviews.length;
+  };
+
+  const avgAttendance = calculateAvg('rating_attendance');
+  const avgTeaching = calculateAvg('rating_teaching');
+  const avgBehavior = calculateAvg('rating_behavior');
+  const avgGrading = calculateAvg('rating_grading');
   
   const getTopBadges = () => {
     const badgeCounts: Record<string, number> = {};
@@ -441,9 +493,12 @@ export default function ProfessorPage() {
         return;
     }
 
-    if (selectedBadges.length === 0) {
-        alert("الرجاء اختيار وصف واحد على الأقل من الشارات.");
-        return;
+    for (const group of BADGE_GROUPS) {
+        const hasSelection = group.options.some(opt => selectedBadges.includes(opt));
+        if (!hasSelection) {
+            alert(`الرجاء اختيار وصف واحد على الأقل من خانة "${group.label}"`);
+            return;
+        }
     }
 
     setIsSubmitting(true);
@@ -496,13 +551,11 @@ export default function ProfessorPage() {
         <div className={`${cardStyle} p-8`}>
           <div className="flex flex-col gap-4">
             <div className="inline-block">
-                <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className}`}>
-                <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
-                {/* 🔥🔥 تعديل الخط الأخضر ليصبح على طول الاسم تماماً 🔥🔥 */}
-                <span className="text-lg md:text-2xl font-black relative">
-                    {professor.name}
-                    <span className="absolute bottom-[-6px] right-0 h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full"></span>
-                </span>
+                {/* 🔥 التعديل هنا: الخط صلب 75% ثم يتلاشى 🔥 */}
+                <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className} relative w-fit`}>
+                    <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
+                    <span className="text-lg md:text-2xl font-black">{professor.name}</span>
+                    <span className="absolute bottom-[-6px] right-0 h-1.5 w-full bg-gradient-to-l from-teal-400 via-teal-400 via-75% to-transparent rounded-full"></span>
                 </h1>
             </div>
             
@@ -520,6 +573,15 @@ export default function ProfessorPage() {
         {/* الكارت الإحصائي الشامل */}
         <div className={`${cardStyle} p-6 mt-6`}>
             
+            {/* 🔥🔥 التعديل هنا: خط الإحصائيات صار واضح ومتناسق (opacity-80) 🔥🔥 */}
+            <div className="mb-6">
+                <div className="flex items-center gap-2">
+                    <Activity className="text-teal-500" size={24} />
+                    <h3 className={`text-xl font-bold text-white ${cairoFont.className}`}>إحصائيات التقييم</h3>
+                </div>
+                <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 opacity-80 shadow-sm"></div>
+            </div>
+
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
                 <div className="flex items-center w-full sm:w-auto justify-center sm:justify-start">
                     <SuperSmartCircle percentage={percentageRating} />
@@ -538,7 +600,6 @@ export default function ProfessorPage() {
                 <div className="flex items-center justify-end gap-4 w-full sm:w-1/3">
                     <div className="flex flex-col items-end">
                         <span className="text-xs font-bold text-slate-400">عدد الزيارات</span>
-                        {/* 🔥 عرض عدد الزيارات الحقيقي 🔥 */}
                         <span className="text-2xl font-black text-white">{professor.view_count || 0}</span>
                     </div>
                     <div className="bg-slate-900 p-3 rounded-full border border-slate-700 text-purple-400 shadow-lg">
@@ -546,6 +607,16 @@ export default function ProfessorPage() {
                     </div>
                 </div>
             </div>
+
+            {/* تفاصيل التقييمات */}
+            {reviews.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 py-6 border-b border-slate-700/50">
+                    <StatBar label="جودة الشرح" value={avgTeaching} icon={BookOpen} colorClass="text-purple-400" bgClass="bg-purple-500" />
+                    <StatBar label="نظام التحضير" value={avgAttendance} icon={CalendarClock} colorClass="text-blue-400" bgClass="bg-blue-500" />
+                    <StatBar label="الأخلاق والتعامل" value={avgBehavior} icon={Smile} colorClass="text-emerald-400" bgClass="bg-emerald-500" />
+                    <StatBar label="سهولة الدرجات" value={avgGrading} icon={PenTool} colorClass="text-orange-400" bgClass="bg-orange-500" />
+                </div>
+            )}
 
             <div className="pt-4 flex flex-col sm:flex-row items-center gap-4 justify-center sm:justify-start">
                 <span className="text-[10px] font-bold text-slate-400 shrink-0 flex items-center gap-1">
@@ -567,36 +638,50 @@ export default function ProfessorPage() {
 
         {/* الكارت 2: إضافة تقييم */}
         <div className={`${cardStyle} p-6 md:p-8`}>
-          <div className="inline-block mb-6">
+          <div className="inline-block mb-6 w-full">
             <div className="flex items-center gap-2">
               <Award className="text-teal-400" size={20} />
               <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
             </div>
+            {/* 🔥🔥 تعديل الخط هنا أيضاً للتناسق الكامل 🔥🔥 */}
+            <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 shadow-sm opacity-80"></div>
           </div>
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <div>
+                  <div>
                     <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
                     <div className="relative">
                         <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
                         <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
                     </div>
-                 </div>
-                 <div>
+                  </div>
+                  <div>
                     <label className="text-xs font-bold text-slate-400 mb-2 block">الدرجة <span className="text-red-500">*</span></label>
                     <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all appearance-none cursor-pointer">
                         <option value="">اختر..</option>
                         {["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F"].map(g => <option key={g} value={g}>{g}</option>)}
                         <option value="أتحفظ عن الإفصاح" className="text-slate-400 bg-slate-800">أتحفظ عن الإفصاح</option>
                     </select>
-                 </div>
+                  </div>
             </div>
-            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center sm:text-right">
-                <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
-                <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
-                <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
-                <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
+            
+            {/* 🔥🔥 المربع الرمادي مع العنوان المدمج 🔥🔥 */}
+            <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-5">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-600">
+                    <Activity size={16} className="text-teal-500" />
+                    <span className="text-sm font-bold text-slate-300">معايير التقييم</span>
+                    <span className="text-red-500 text-sm">*</span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-right">
+                    <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
+                    <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
+                    <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
+                    <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
+                </div>
             </div>
+
             <div>
                 <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
                     <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useUniversity } from '../context/UniversityContext';
 import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, GraduationCap, ChevronLeft, ChevronDown, ChevronUp, User, Loader2 } from 'lucide-react';
 import { Amiri } from 'next/font/google';
-import confetti from 'canvas-confetti'; // 🔥 استيراد الطراطيع
+import confetti from 'canvas-confetti';
 
 const amiriFont = Amiri({ 
   subsets: ['arabic'],
@@ -21,6 +21,17 @@ const UNIVERSITY_CONFIG: Record<string, { fullName: string, color: string, colle
   'majmaah': { fullName: "جامعة المجمعة", color: '#d97706', colleges: [] },
   'qassim': { fullName: "جامعة القصيم", color: '#06b6d4', colleges: [] },
   'kau': { fullName: "جامعة الملك عبدالعزيز", color: '#65a30d', colleges: [] }
+};
+
+// 🔥 1. دالة الذكاء (توحيد النصوص)
+const normalizeText = (text: string) => {
+  if (!text) return "";
+  return text
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا') // يوحد الألف
+    .replace(/ة/g, 'ه')     // يوحد التاء المربوطة
+    .replace(/ى/g, 'ي')     // يوحد الياء
+    .replace(/[ًٌٍَُِّْ]/g, ''); // يشيل الحركات
 };
 
 const getSmartColor = (percentage: number) => {
@@ -54,7 +65,6 @@ export default function Home() {
   const primaryColor = currentConfig?.color || '#14b8a6';
   const universityName = currentConfig?.fullName || selectedUni?.name || 'الجامعة';
 
-  // 🔥 تأثير طراطيع الافتتاح 🔥
   useEffect(() => {
     const duration = 4 * 1000;
     const end = Date.now() + duration;
@@ -105,10 +115,6 @@ export default function Home() {
           setIsLoadingData(false); return;
         }
 
-        const dbColleges = Array.from(new Set(allProfs.map(p => p.college?.trim()))).filter(Boolean);
-        const configColleges = (currentConfig?.colleges || []).map(c => c.trim());
-        const allUniqueColleges = Array.from(new Set([...configColleges, ...dbColleges]));
-
         const professorIds = allProfs.map(p => p.id);
         const { data: reviews } = await supabase.from('reviews').select('professor_id, rating, course, tags').in('professor_id', professorIds);
         
@@ -150,6 +156,11 @@ export default function Home() {
           }
         });
 
+        // استخدام بيانات الداتابيز للكليات
+        const dbColleges = Array.from(new Set(allProfs.map(p => p.college?.trim()))).filter(Boolean);
+        const configColleges = (currentConfig?.colleges || []).map(c => c.trim());
+        const allUniqueColleges = Array.from(new Set([...configColleges, ...dbColleges]));
+
         setSortedColleges(allUniqueColleges.map(name => ({ 
           name, 
           percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
@@ -166,11 +177,42 @@ export default function Home() {
     fetchStats();
   }, [selectedUni, currentConfig]);
 
+  // 🔥 2. لوجيك البحث الجديد (تأخير + تطبيع النصوص)
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      if (!searchTerm.trim()) {
+        setIsSearching(false);
+        if (searchTerm === '') setHasSearched(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setHasSearched(true);
+      setShowCollegesMenu(false);
+      setShowCoursesMenu(false);
+
+      const normalizedTerm = normalizeText(searchTerm);
+
+      const results = allTopProfessors.filter(p => {
+        const name = normalizeText(p.name);
+        const college = normalizeText(p.college || '');
+        const tags = p.topTags ? p.topTags.map((t: string) => normalizeText(t)).join(' ') : '';
+        
+        return name.includes(normalizedTerm) || 
+               college.includes(normalizedTerm) || 
+               tags.includes(normalizedTerm);
+      });
+
+      setProfessors(results);
+      setIsSearching(false);
+    }, 300); // 300ms تأخير
+
+    return () => clearTimeout(delaySearch);
+  }, [searchTerm, allTopProfessors]);
+
+  // تحديث النص فقط، والـ useEffect يتولى الباقي
   const executeSearch = (term: string) => {
-    if (!term.trim()) return;
-    setIsSearching(true); setHasSearched(true); setShowCollegesMenu(false); setShowCoursesMenu(false); setSearchTerm(term);
-    const results = allTopProfessors.filter(p => p.name.includes(term) || (p.college && p.college.includes(term)));
-    setProfessors(results); setIsSearching(false);
+    setSearchTerm(term);
   };
 
   const eliteProfessors = allTopProfessors.slice(0, 10);
@@ -311,7 +353,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* 🔥 الفوتر الاحترافي (رسالة الاطلاق + الحقوق) 🔥 */}
+      {/* 🔥 الفوتر الاحترافي (المضيء) 🔥 */}
       <footer className="w-full py-8 mt-auto relative z-10 border-t border-slate-800/50 bg-slate-900/20 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-4 text-center">
             
