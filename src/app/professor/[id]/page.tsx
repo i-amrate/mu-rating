@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -608,7 +608,7 @@ export default function ProfessorPage() {
           </div>
         </div>
 
-        {/* الكارت 2: إضافة تقييم (تم نقله هنا ليصبح الثاني) */}
+        {/* الكارت 2: إضافة تقييم */}
         <div className={`${cardStyle} p-6 md:p-8`}>
           <div className="inline-block mb-6 w-full">
             <div className="flex items-center gap-2">
@@ -692,7 +692,7 @@ export default function ProfessorPage() {
           </form>
         </div>
 
-        {/* الكارت 3: الإحصائيات (تم نقله هنا ليصبح الثالث) */}
+        {/* الكارت 3: الإحصائيات */}
         <div className={`${cardStyle} p-6 mt-6`}>
             
             <div className="mb-6">
@@ -859,7 +859,7 @@ export default function ProfessorPage() {
                       </div>
                       <div className="pr-2 md:pr-4">
                         {review.replies?.filter((r:any) => !r.parent_id).map((reply: any) => (
-                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={onLikeReply} likedReplies={likedReplies} />
+                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
                         ))}
                       </div>
                     </div>
@@ -872,5 +872,4 @@ export default function ProfessorPage() {
       </main>
     </div>
   );
-} 
- 
+}
