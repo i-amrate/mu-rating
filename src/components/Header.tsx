@@ -172,7 +172,7 @@ export default function Header() {
         {/* 3. اليسار: الأيقونات */}
         <div className="flex items-center justify-end gap-3 md:gap-5 border-r border-slate-800/50 h-10 md:h-12 pr-4 md:pr-0">
           <a 
-            href="https://docs.google.com/forms/..." 
+            href="https://docs.google.com/forms/d/e/1FAIpQLSeQabOUnRPa40dQkm7SqvrW-3YiCGtwi2r3wecDmdPEassO3A/viewform?usp=header" 
             target="_blank"
             className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-teal-400 hover:border-teal-500/50 transition-all"
             title="اقتراحات"
@@ -180,7 +180,7 @@ export default function Header() {
             <MessageSquarePlus size={20} />
           </a>
           <a 
-            href="https://instagram.com/..." 
+            href="https://www.instagram.com/acc.azzamsa?igsh=MWhjY3luN2htbDJs&utm_source=qr" 
             target="_blank"
             className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-teal-400 hover:border-teal-500/50 transition-all"
             title="إنستقرام"

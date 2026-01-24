@@ -25,11 +25,6 @@ const UNIVERSITY_CONFIG: Record<string, { fullName: string, color: string, colle
   'iau': { fullName: "جامعة الإمام عبدالرحمن بن فيصل", color: '#059669', colleges: [] }
 };
 
-const normalizeText = (text: string) => {
-  if (!text) return "";
-  return text.toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[ًٌٍَُِّْ]/g, '');
-};
-
 const getSmartColor = (percentage: number) => {
   if (percentage >= 90) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)]';
   if (percentage >= 75) return 'text-green-400 bg-green-500/10 border-green-500/20';
@@ -47,23 +42,19 @@ export default function Home() {
   const [courseSearchTerm, setCourseSearchTerm] = useState(''); 
   const [collegeSearchTerm, setCollegeSearchTerm] = useState('');
   
-  // قوائم البيانات
   const [professors, setProfessors] = useState<any[]>([]); 
   const [eliteProfessors, setEliteProfessors] = useState<any[]>([]); 
   const [sortedColleges, setSortedColleges] = useState<any[]>([]);
   const [coursesWithStats, setCoursesWithStats] = useState<{course_name: string, avg_rating: number}[]>([]);
   
-  // حالات التحميل
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [isListLoading, setIsListLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
-  // Pagination State
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [visibleCoursesCount, setVisibleCoursesCount] = useState(10); 
 
-  // UI State
   const [isEliteOpen, setIsEliteOpen] = useState(false); 
   const [isCollegesOpen, setIsCollegesOpen] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -75,13 +66,11 @@ export default function Home() {
   const primaryColor = currentConfig?.color || '#14b8a6';
   const universityName = currentConfig?.fullName || selectedUni?.name || 'الجامعة';
 
-  // 👇 هنا التعديل: Confetti Effect (مرة واحدة فقط)
+  // Confetti Effect
   useEffect(() => {
-    // 1. نشيك هل شاف الاحتفال من قبل؟
     const hasSeenParty = localStorage.getItem('has_seen_launch_party');
-    if (hasSeenParty) return; // إذا شافه، نطلع
+    if (hasSeenParty) return;
 
-    // 2. إذا ما شافه، نشغل الكود
     const duration = 3 * 1000;
     const end = Date.now() + duration;
     const frame = () => {
@@ -90,8 +79,6 @@ export default function Home() {
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-
-    // 3. نحفظ في الذاكرة
     localStorage.setItem('has_seen_launch_party', 'true');
   }, []);
 
@@ -107,7 +94,7 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 1️⃣ جلب الإحصائيات (RPC)
+  // 1️⃣ جلب الإحصائيات (الكليات + النخبة)
   useEffect(() => {
     if (!selectedUni) return;
     
@@ -117,21 +104,22 @@ export default function Home() {
         const { data: allProfs } = await supabase
           .from('professors')
           .select('id, name, college, university_id')
-          .eq('university_id', selectedUni.id);
+          .eq('university_id', selectedUni.id)
+          .range(0, 9999); 
         
         if (!allProfs || allProfs.length === 0) {
           setEliteProfessors([]); setSortedColleges([]); setCoursesWithStats([]);
           setIsStatsLoading(false); return;
         }
 
+        const profIds = allProfs.map(p => p.id);
         const { data: reviews } = await supabase
           .from('reviews')
-          .select('professor_id, rating, course')
-          .in('professor_id', allProfs.map(p => p.id));
+          .select('professor_id, rating')
+          .in('professor_id', profIds);
 
         const profStats: Record<string, { total: number, count: number }> = {};
-        const collegeMap: Record<string, { total: number, count: number }> = {};
-
+        
         if (reviews) {
           reviews.forEach(r => {
             if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
@@ -148,25 +136,35 @@ export default function Home() {
 
         setEliteProfessors(ratedProfs);
 
+        const collegeMap: Record<string, { total: number, count: number }> = {};
+        const allCollegesSet = new Set<string>();
+
+        if (currentConfig?.colleges) {
+            currentConfig.colleges.forEach(c => allCollegesSet.add(c.trim()));
+        }
+
         allProfs.forEach(p => {
           const cName = p.college?.trim();
-          if (cName && profStats[p.id]) {
-            if (!collegeMap[cName]) collegeMap[cName] = { total: 0, count: 0 };
-            collegeMap[cName].total += profStats[p.id].total / profStats[p.id].count;
-            collegeMap[cName].count += 1;
+          if (cName) {
+            allCollegesSet.add(cName);
+            if (profStats[p.id]) {
+                if (!collegeMap[cName]) collegeMap[cName] = { total: 0, count: 0 };
+                collegeMap[cName].total += profStats[p.id].total / profStats[p.id].count;
+                collegeMap[cName].count += 1;
+            }
           }
         });
 
-        const dbColleges = Array.from(new Set(allProfs.map(p => p.college?.trim()))).filter(Boolean);
-        const configColleges = (currentConfig?.colleges || []).map(c => c.trim());
-        const allUniqueColleges = Array.from(new Set([...configColleges, ...dbColleges]));
-
-        setSortedColleges(allUniqueColleges.map(name => ({ 
+        const finalColleges = Array.from(allCollegesSet).map(name => ({ 
           name, 
           percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
-        })).sort((a, b) => b.percent - a.percent));
+        })).sort((a, b) => {
+            if (b.percent !== a.percent) return b.percent - a.percent;
+            return a.name.localeCompare(b.name);
+        });
 
-        // طلب المواد من الدالة السريعة
+        setSortedColleges(finalColleges);
+
         const { data: coursesData, error: coursesError } = await supabase
             .rpc('get_top_courses_by_university', { uni_id: selectedUni.id });
 
@@ -178,10 +176,10 @@ export default function Home() {
       setIsStatsLoading(false);
     }
     fetchStats();
-  }, [selectedUni]);
+  }, [selectedUni, currentConfig]);
 
 
-  // 2️⃣ دالة جلب الدكاترة
+  // 🔥🔥🔥 2️⃣ دالة البحث "السريعة جداً" (RPC) 🔥🔥🔥
   const fetchProfessorsList = useCallback(async (isNewSearch = false, loadMore = false) => {
     if (!selectedUni) return;
     
@@ -198,24 +196,37 @@ export default function Home() {
       const from = currentPage * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      let query = supabase
-        .from('professors')
-        .select('*')
-        .eq('university_id', selectedUni.id)
-        .order('cached_rating', { ascending: false, nullsFirst: false })
-        .range(from, to); 
+      let resultData = null;
+      let resultError = null;
 
-      if (searchTerm.trim()) {
-        const term = normalizeText(searchTerm);
-        query = query.or(`name.ilike.%${searchTerm}%,college.ilike.%${searchTerm}%`);
+      if (!searchTerm.trim()) {
+          const { data, error } = await supabase
+            .from('professors')
+            .select('*')
+            .eq('university_id', selectedUni.id)
+            .order('cached_rating', { ascending: false, nullsFirst: false })
+            .range(from, to);
+          
+          resultData = data;
+          resultError = error;
+      } 
+      else {
+          const { data, error } = await supabase
+            .rpc('search_professors_global', {
+                search_term: searchTerm.trim(), 
+                uni_id: selectedUni.id,
+                limit_val: PAGE_SIZE,
+                offset_val: from
+            });
+
+          resultData = data;
+          resultError = error;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      if (data) {
-        const profIds = data.map(p => p.id);
+      if (resultError) throw resultError;
+      
+      if (resultData) {
+        const profIds = resultData.map((p: any) => p.id);
         const { data: reviews } = await supabase
           .from('reviews')
           .select('professor_id, rating')
@@ -223,14 +234,14 @@ export default function Home() {
 
         const profStats: Record<string, { total: number, count: number }> = {};
         if (reviews) {
-          reviews.forEach(r => {
+          reviews.forEach((r: any) => {
             if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
             profStats[r.professor_id].total += (r.rating / 5) * 100;
             profStats[r.professor_id].count += 1;
           });
         }
 
-        const dataWithRatings = data.map(p => ({
+        const dataWithRatings = resultData.map((p: any) => ({
           ...p,
           percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : undefined
         }));
@@ -241,7 +252,7 @@ export default function Home() {
           setProfessors(prev => [...prev, ...dataWithRatings]);
         }
 
-        if (data.length < PAGE_SIZE) {
+        if (resultData.length < PAGE_SIZE) {
           setHasMore(false);
         } else {
           setPage(currentPage + 1);
@@ -255,7 +266,6 @@ export default function Home() {
       setIsLoadingMore(false);
     }
   }, [selectedUni, page, searchTerm]);
-
 
   useEffect(() => {
     const delaySearch = setTimeout(() => {
@@ -451,6 +461,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="w-full py-8 mt-auto relative z-10 border-t border-slate-800/50 bg-slate-900/20 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-4 text-center">
+            
             <div className="space-y-1.5 animate-pulse">
                 <p className="text-slate-300 text-xs md:text-sm font-medium flex items-center justify-center gap-2">
                     تم إطلاق هذا الموقع في يوم 23 يناير <span className="text-lg">🎉</span>
@@ -459,6 +470,7 @@ export default function Home() {
                     لا تنسى تنشر الموقع لاخوياك وللدفعه الي بعدك عشان تضمن وضعك <span className="text-sm">😉</span>
                 </p>
             </div>
+
             <p className="text-slate-700 text-[10px] dir-ltr font-mono mt-2 opacity-50">
                 © 2026 Morshed Platform. All rights reserved.
             </p>
