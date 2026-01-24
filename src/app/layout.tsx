@@ -72,8 +72,9 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico', 
   },
+  // ✅ تم وضع كود التحقق الصحيح هنا
   verification: {
-    google: 'رمز-التحقق-من-قوقل-هنا', 
+    google: '-OD2HaWe1XUR2PIEEuTBtZNKn0PmTphI-iFzNBqa4-Q', 
   },
 };
 
