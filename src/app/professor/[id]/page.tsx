@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, TrendingUp, Users, BookOpen, Tag, BarChart3, Medal, Eye, Heart, Activity, Info, Percent, Sparkles, Smile, PenTool, CalendarClock, CheckCircle2 } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -15,35 +15,61 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// 🔥 1. إعدادات أنواع الشارات وتصنيفها 🔥
 const BADGE_PRIORITY: Record<string, number> = {
   'positive': 1, 'neutral': 2, 'negative': 3
 };
 
 const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
+  // المجموعة 1: التحضير
+  "ما يحضر": 'positive', "لين بالتحضير": 'positive', "تحضير_طبيعي": 'neutral', "شدييد بالتحضير": 'negative',
+  // المجموعة 2: الشرح
   "شرييح": 'positive', "شرحه عادي": 'neutral', "شرحه سيئ": 'negative',
-  "متعاون": 'positive', "غير متعاون": 'negative', 
-  "تحضير_طبيعي": 'neutral', "تعاون_طبيعي": 'neutral', "شخصية_طبيعية": 'neutral', "مشروعه طبيعي": 'neutral', "اختباراته وسط": 'neutral',
-  "لين بالتحضير": 'positive', "شدييد بالتحضير": 'negative',
-  "اختباراته سهله": 'positive', "اختباراته صععبه": 'negative',
-  "رهييب بالمشروع": 'positive', "شديد بالمشروع": 'negative',
-  "محتررم": 'positive', "عسسلل": 'positive', "اخلاق": 'positive',
-  "غثيث": 'negative', "وقح": 'negative'
+  // المجموعة 3: التعاون
+  "متعاون": 'positive', "تعاون_طبيعي": 'neutral', "غير متعاون": 'negative',
+  // المجموعة 4: المشاريع
+  "رهييب بالمشروع": 'positive', "مشروعه طبيعي": 'neutral', "شديد بالمشروع": 'negative',
+  // المجموعة 5: الاختبارات
+  "اختباراته سهله": 'positive', "اختباراته وسط": 'neutral', "اختباراته صععبه": 'negative',
+  // المجموعة 6: الشخصية
+  "عسسلل": 'positive', "محتررم": 'positive', "شخصية_طبيعية": 'neutral', "اخلاق": 'positive', "غثيث": 'negative', "وقح": 'negative',
+  // المجموعة 7: أخرى
+  "يعطي بونص": 'positive', 
+  "يدف بالتصحيح": 'positive', 
+  "يعطيك حقك": 'positive',
+  "شديد بالتصحيح": 'negative', 
+  "محاضرته ممتعه": 'positive', 
+  "محاضرته ممله": 'negative',
+  "أسئلته مكررة": 'positive'
 };
 
 const BADGE_GROUPS = [
-  { id: 'attendance', label: 'التحضير', options: ["لين بالتحضير", "تحضير_طبيعي", "شدييد بالتحضير"] },
+  { id: 'attendance', label: 'التحضير', options: ["ما يحضر", "لين بالتحضير", "تحضير_طبيعي", "شدييد بالتحضير"] },
   { id: 'explanation', label: 'الشرح', options: ["شرييح", "شرحه عادي", "شرحه سيئ"] },
   { id: 'cooperation', label: 'التعاون', options: ["متعاون", "تعاون_طبيعي", "غير متعاون"] },
   { id: 'projects', label: 'المشاريع', options: ["رهييب بالمشروع", "مشروعه طبيعي", "شديد بالمشروع"] },
   { id: 'exams', label: 'الاختبارات', options: ["اختباراته سهله", "اختباراته وسط", "اختباراته صععبه"] },
-  { id: 'personality', label: 'الشخصية', options: ["محتررم", "عسسلل", "شخصية_طبيعية", "غثيث", "وقح"] },
+  { id: 'personality', label: 'الشخصية', options: ["عسسلل", "محتررم", "شخصية_طبيعية", "غثيث", "وقح"] },
+  { 
+    id: 'other', 
+    label: 'أخرى', 
+    options: [
+        "يعطي بونص", 
+        "يدف بالتصحيح", 
+        "يعطيك حقك", 
+        "شديد بالتصحيح", 
+        "محاضرته ممتعه", 
+        "محاضرته ممله", 
+        "أسئلته مكررة"
+    ] 
+  }
 ];
 
 const sortBadges = (tags: string[]) => {
   if (!tags) return [];
   return [...tags].sort((a, b) => {
-    const typeA = BADGE_TYPES[a] || 'neutral';
-    const typeB = BADGE_TYPES[b] || 'neutral';
+    const typeA = BADGE_TYPES[a] || 'positive';
+    const typeB = BADGE_TYPES[b] || 'positive';
     return BADGE_PRIORITY[typeA] - BADGE_PRIORITY[typeB];
   });
 };
@@ -53,12 +79,16 @@ const getBadgeLabel = (badge: string) => {
   return badge;
 };
 
+// 🔥 دالة التلوين 🔥
 const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
-  if (BADGE_TYPES[badge] === 'neutral') {
+  let type = BADGE_TYPES[badge];
+  if (!type) type = 'positive'; 
+
+  if (type === 'neutral') {
      if (isSelected) return 'bg-slate-600 text-white border-slate-500 shadow-lg';
      return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
   }
-  const type = BADGE_TYPES[badge] || 'neutral';
+
   if (isSelected) {
     switch (type) {
       case 'positive': return 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40';
@@ -75,7 +105,9 @@ const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
 };
 
 const getBadgeDisplayColor = (badge: string) => {
-    const type = BADGE_TYPES[badge] || 'neutral';
+    let type = BADGE_TYPES[badge];
+    if (!type) type = 'positive';
+
     switch (type) {
         case 'positive': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
         case 'negative': return 'bg-red-500/10 text-red-400 border-red-500/30';
@@ -293,7 +325,6 @@ const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyConten
   );
 };
 
-// 🔥🔥 مكون النجوم الجديد: تفاعلي ويظهر كلمات 🔥🔥
 const StarRatingInput = ({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) => {
     const ratings = ["سيء جداً", "سيء", "مقبول", "جيد", "ممتاز"];
     return (
@@ -456,9 +487,20 @@ export default function ProfessorPage() {
     await supabase.rpc('increment_reply_likes', { reply_id: replyId });
   }
 
+  // 🔥 منطق اختيار المجموعات الجديد (يدعم التعدد في "أخرى") 🔥
   const toggleBadge = (badge: string, groupOptions: string[], groupId: string) => {
     let newBadges = [...selectedBadges];
-    if (groupId === 'personality') {
+    
+    // إذا كانت المجموعة "أخرى"، نسمح باختيار متعدد
+    if (groupId === 'other') {
+        if (newBadges.includes(badge)) {
+            newBadges = newBadges.filter(b => b !== badge);
+        } else {
+            newBadges.push(badge);
+        }
+    } 
+    // إذا كانت شخصية (معقدة شوي)
+    else if (groupId === 'personality') {
       const positiveTraits = ["محتررم", "عسسلل"];
       const negativeTraits = ["غثيث", "وقح"];
       
@@ -475,7 +517,9 @@ export default function ProfessorPage() {
         if (newBadges.includes(badge)) newBadges = newBadges.filter(b => b !== badge);
         else newBadges.push(badge);
       }
-    } else {
+    } 
+    // باقي المجموعات (اختيار واحد فقط)
+    else {
       newBadges = newBadges.filter(b => !groupOptions.includes(b));
       if (!selectedBadges.includes(badge)) newBadges.push(badge);
     }
@@ -493,13 +537,8 @@ export default function ProfessorPage() {
         return;
     }
 
-    for (const group of BADGE_GROUPS) {
-        const hasSelection = group.options.some(opt => selectedBadges.includes(opt));
-        if (!hasSelection) {
-            alert(`الرجاء اختيار وصف واحد على الأقل من خانة "${group.label}"`);
-            return;
-        }
-    }
+    // 🔥 تم إلغاء شرط الإجبار هنا 🔥
+    // الآن الطالب حر يختار اللي يبي من الشارات أو يتركها
 
     setIsSubmitting(true);
     const overallRating = Math.round(((ratingAttendance + ratingTeaching + ratingBehavior + ratingGrading) / 4));
@@ -551,7 +590,6 @@ export default function ProfessorPage() {
         <div className={`${cardStyle} p-8`}>
           <div className="flex flex-col gap-4">
             <div className="inline-block">
-                {/* 🔥 التعديل هنا: الخط صلب 75% ثم يتلاشى 🔥 */}
                 <h1 className={`flex items-baseline gap-2 text-white ${cairoFont.className} relative w-fit`}>
                     <span className="text-teal-500 font-bold text-sm md:text-base opacity-90">اسم الدكتور |</span>
                     <span className="text-lg md:text-2xl font-black">{professor.name}</span>
@@ -570,10 +608,93 @@ export default function ProfessorPage() {
           </div>
         </div>
 
-        {/* الكارت الإحصائي الشامل */}
+        {/* الكارت 2: إضافة تقييم (تم نقله هنا ليصبح الثاني) */}
+        <div className={`${cardStyle} p-6 md:p-8`}>
+          <div className="inline-block mb-6 w-full">
+            <div className="flex items-center gap-2">
+              <Award className="text-teal-400" size={20} />
+              <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
+            </div>
+            {/* 🔥 الخط المعدل: نبض مستمر + وهج مضيء 🔥 */}
+            <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 shadow-[0_0_15px_rgba(45,212,191,0.6)] animate-pulse"></div>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                        <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 mb-2 block">الدرجة <span className="text-red-500">*</span></label>
+                    <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all appearance-none cursor-pointer">
+                        <option value="">اختر..</option>
+                        {["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F"].map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="أتحفظ عن الإفصاح" className="text-slate-400 bg-slate-800">أتحفظ عن الإفصاح</option>
+                    </select>
+                  </div>
+            </div>
+            
+            <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-5">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-600">
+                    <Activity size={16} className="text-teal-500" />
+                    <span className="text-sm font-bold text-slate-300">معايير التقييم</span>
+                    <span className="text-red-500 text-sm">*</span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-right">
+                    <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
+                    <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
+                    <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
+                    <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
+                </div>
+            </div>
+
+            <div>
+                <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
+                    <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">
+                        <Tag size={12}/> اختر الصفات (اختياري)
+                    </label>
+                </div>
+                <div className="space-y-4">
+                    {BADGE_GROUPS.map((group) => (
+                        <div key={group.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="text-[10px] text-slate-500 font-bold w-16 shrink-0">{group.label}:</span>
+                            <div className="flex flex-wrap gap-2">
+                                {group.options.map(badge => (
+                                    <button 
+                                        key={badge} 
+                                        type="button" 
+                                        onClick={() => toggleBadge(badge, group.options, group.id)} 
+                                        className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${getBadgeColorStyle(badge, selectedBadges.includes(badge))}`}
+                                    >
+                                        {getBadgeLabel(badge)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-2">
+                اكتب تقييمك بكل مصداقية <span className="text-red-500">*</span>
+              </label>
+              <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تقييمك هنا..." className="w-full bg-slate-950/50 border border-slate-700 rounded-xl p-4 text-white min-h-[100px] focus:outline-none focus:border-teal-500 text-sm transition-all shadow-inner" />
+            </div>
+            <button disabled={isSubmitting} type="submit" className="w-full bg-teal-600 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-500 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                {isSubmitting ? 'جاري النشر...' : <><Send size={16} /> نشر التقييم</>}
+            </button>
+          </form>
+        </div>
+
+        {/* الكارت 3: الإحصائيات (تم نقله هنا ليصبح الثالث) */}
         <div className={`${cardStyle} p-6 mt-6`}>
             
-            {/* 🔥🔥 التعديل هنا: خط الإحصائيات صار واضح ومتناسق (opacity-80) 🔥🔥 */}
             <div className="mb-6">
                 <div className="flex items-center gap-2">
                     <Activity className="text-teal-500" size={24} />
@@ -624,8 +745,8 @@ export default function ProfessorPage() {
                 </span>
                 <div className="flex flex-wrap justify-center gap-2">
                     {topBadges.length > 0 ? topBadges.map((badge, idx) => {
-                        const label = getBadgeLabel(badge);
                         const style = getBadgeDisplayColor(badge);
+                        const label = getBadgeLabel(badge);
                         return (
                             <span key={idx} className={`text-[10px] px-3 py-1 rounded-md border shadow-sm ${style}`}>
                                 {label}
@@ -636,96 +757,7 @@ export default function ProfessorPage() {
             </div>
         </div>
 
-        {/* الكارت 2: إضافة تقييم */}
-        <div className={`${cardStyle} p-6 md:p-8`}>
-          <div className="inline-block mb-6 w-full">
-            <div className="flex items-center gap-2">
-              <Award className="text-teal-400" size={20} />
-              <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
-            </div>
-            {/* 🔥🔥 تعديل الخط هنا أيضاً للتناسق الكامل 🔥🔥 */}
-            <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 shadow-sm opacity-80"></div>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                        <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 mb-2 block">الدرجة <span className="text-red-500">*</span></label>
-                    <select value={grade} onChange={(e) => setGrade(e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all appearance-none cursor-pointer">
-                        <option value="">اختر..</option>
-                        {["A+", "A", "B+", "B", "C+", "C", "D+", "D", "F"].map(g => <option key={g} value={g}>{g}</option>)}
-                        <option value="أتحفظ عن الإفصاح" className="text-slate-400 bg-slate-800">أتحفظ عن الإفصاح</option>
-                    </select>
-                  </div>
-            </div>
-            
-            {/* 🔥🔥 المربع الرمادي مع العنوان المدمج 🔥🔥 */}
-            <div className="bg-slate-900/50 rounded-xl border border-slate-700/50 p-5">
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-600">
-                    <Activity size={16} className="text-teal-500" />
-                    <span className="text-sm font-bold text-slate-300">معايير التقييم</span>
-                    <span className="text-red-500 text-sm">*</span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 text-center sm:text-right">
-                    <StarRatingInput label="نظام التحضير" value={ratingAttendance} onChange={setRatingAttendance} />
-                    <StarRatingInput label="جودة الشرح" value={ratingTeaching} onChange={setRatingTeaching} />
-                    <StarRatingInput label="الأخلاق والتعامل" value={ratingBehavior} onChange={setRatingBehavior} />
-                    <StarRatingInput label="الدرجات" value={ratingGrading} onChange={setRatingGrading} />
-                </div>
-            </div>
-
-            <div>
-                <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
-                    <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">
-                        <Tag size={12}/> اختر الصفات <span className="text-red-500 text-lg hover:scale-125 transition-transform">*</span>
-                    </label>
-                    <div className="absolute right-0 bottom-full mb-2 hidden group-hover/hint:block bg-slate-800 text-slate-300 text-[10px] p-2 rounded-lg border border-slate-600 shadow-xl w-48 z-50">
-                        <div className="flex items-center gap-1 mb-1 text-teal-400 font-bold"><Info size={10}/> تنويه:</div>
-                        يجب اختيار وصف واحد على الأقل من أي مجموعة لإتمام التقييم.
-                        <div className="absolute bottom-[-4px] right-4 w-2 h-2 bg-slate-800 border-b border-r border-slate-600 rotate-45"></div>
-                    </div>
-                </div>
-                <div className="space-y-4">
-                    {BADGE_GROUPS.map((group) => (
-                        <div key={group.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-[10px] text-slate-500 font-bold w-16 shrink-0">{group.label}:</span>
-                            <div className="flex flex-wrap gap-2">
-                                {group.options.map(badge => (
-                                    <button 
-                                        key={badge} 
-                                        type="button" 
-                                        onClick={() => toggleBadge(badge, group.options, group.id)} 
-                                        className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${getBadgeColorStyle(badge, selectedBadges.includes(badge))}`}
-                                    >
-                                        {getBadgeLabel(badge)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2">
-                اكتب تقييمك بكل مصداقية <span className="text-red-500">*</span>
-              </label>
-              <textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="اكتب تقييمك هنا..." className="w-full bg-slate-950/50 border border-slate-700 rounded-xl p-4 text-white min-h-[100px] focus:outline-none focus:border-teal-500 text-sm transition-all shadow-inner" />
-            </div>
-            <button disabled={isSubmitting} type="submit" className="w-full bg-teal-600 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-500 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                {isSubmitting ? 'جاري النشر...' : <><Send size={16} /> نشر التقييم</>}
-            </button>
-          </form>
-        </div>
-
-        {/* الكارت 3: قائمة التقييمات */}
+        {/* الكارت 4: قائمة التقييمات */}
         <div className={`${cardStyle} p-6 md:p-8`}>
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
@@ -787,7 +819,7 @@ export default function ProfessorPage() {
                       {review.tags && review.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                               {sortBadges(review.tags).map((tag: string, idx: number) => {
-                                  const style = getBadgeColorStyle(tag, true);
+                                  const style = getBadgeDisplayColor(tag);
                                   const label = getBadgeLabel(tag);
                                   return (
                                       <span key={idx} className={`text-[10px] px-2 py-0.5 rounded-md border ${style}`}>
@@ -827,7 +859,7 @@ export default function ProfessorPage() {
                       </div>
                       <div className="pr-2 md:pr-4">
                         {review.replies?.filter((r:any) => !r.parent_id).map((reply: any) => (
-                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
+                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={onLikeReply} likedReplies={likedReplies} />
                         ))}
                       </div>
                     </div>
