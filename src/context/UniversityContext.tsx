@@ -21,14 +21,30 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
     async function fetchUniversities() {
       try {
         const { data } = await supabase.from('universities').select('*');
+        
         if (data && data.length > 0) {
-          setUniversities(data);
+          // 🔥 هنا سحر الترتيب: الإمام أولاً، ثم المجمعة، ثم الباقي
+          const sortedData = data.sort((a, b) => {
+            // 1. جامعة الإمام محمد بن سعود (تأكد أن السلاق حقها في الداتابيز هو 'imam')
+            if (a.slug === 'imam') return -1;
+            if (b.slug === 'imam') return 1;
+            
+            // 2. جامعة المجمعة (mu)
+            if (a.slug === 'mu') return -1;
+            if (b.slug === 'mu') return 1;
+            
+            // 3. باقي الجامعات ما يهم ترتيبها
+            return 0;
+          });
+
+          setUniversities(sortedData);
+
           // نحاول نجيب الجامعة من الذاكرة المحلية (Local Storage)
           const savedSlug = localStorage.getItem('selectedUniSlug');
-          const found = data.find(u => u.slug === savedSlug);
+          const found = sortedData.find(u => u.slug === savedSlug);
           
-          // إذا ما فيه شيء محفوظ، نختار المجمعة (mu) كافتراضي
-          const defaultUni = found || data.find(u => u.slug === 'mu') || data[0];
+          // إذا ما فيه شيء محفوظ، نختار المجمعة (mu) أو أول جامعة في القائمة
+          const defaultUni = found || sortedData.find(u => u.slug === 'mu') || sortedData[0];
           setSelectedUni(defaultUni);
         }
       } catch (error) {
