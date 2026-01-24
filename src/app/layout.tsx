@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// 1. استيراد مكون التحليلات من فيرسل
+import { Analytics } from "@vercel/analytics/react";
 // استيراد مزود الجامعات والهيدر الجديد
 import { UniversityProvider } from "../context/UniversityContext";
 import Header from "../components/Header"; 
@@ -55,7 +57,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/og-image.png', // (اختياري) لو عندك صورة للموقع حطها في ملف public وسمها كذا
+        url: '/og-image.png', 
         width: 1200,
         height: 630,
         alt: 'منصة مرشد لتقييم الجامعات',
@@ -68,9 +70,8 @@ export const metadata: Metadata = {
     description: 'قيم دكتورك وشوف تقييمات غيرك. دليلك الشامل لجامعات المملكة.',
   },
   icons: {
-    icon: '/favicon.ico', // تأكد إن عندك ايقونة للموقع
+    icon: '/favicon.ico', 
   },
-  // ⚠️ مكان كود التحقق حق قوقل (انسخه من Google Search Console وحطه هنا)
   verification: {
     google: 'رمز-التحقق-من-قوقل-هنا', 
   },
@@ -92,16 +93,16 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className="bg-slate-950">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-200 min-h-screen`}>
         
-        {/* تغليف الموقع بمزود بيانات الجامعات */}
         <UniversityProvider>
           
-          {/* الهيدر التفاعلي الجديد */}
           <Header />
 
-          {/* محتوى الصفحة */}
           <div className="pt-24">
             {children}
           </div>
+
+          {/* 2. إضافة مكون التحليلات هنا ليعمل على كامل الموقع */}
+          <Analytics />
 
         </UniversityProvider>
 
