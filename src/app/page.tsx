@@ -1,9 +1,9 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import { useUniversity } from '../context/UniversityContext';
-import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, GraduationCap, ChevronLeft, ChevronDown, ChevronUp, User, Loader2 } from 'lucide-react';
+import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, ChevronLeft, User, Loader2, ChevronDown, Plus } from 'lucide-react';
 import { Amiri } from 'next/font/google';
 import confetti from 'canvas-confetti';
 
@@ -20,18 +20,14 @@ const UNIVERSITY_CONFIG: Record<string, { fullName: string, color: string, colle
   'kfupm': { fullName: "جامعة الملك فهد للبترول والمعادن", color: '#047857', colleges: [] },
   'majmaah': { fullName: "جامعة المجمعة", color: '#d97706', colleges: [] },
   'qassim': { fullName: "جامعة القصيم", color: '#06b6d4', colleges: [] },
-  'kau': { fullName: "جامعة الملك عبدالعزيز", color: '#65a30d', colleges: [] }
+  'kau': { fullName: "جامعة الملك عبدالعزيز", color: '#65a30d', colleges: [] },
+  'psau': { fullName: "جامعة الأمير سطام بن عبدالعزيز", color: '#2563eb', colleges: [] },
+  'iau': { fullName: "جامعة الإمام عبدالرحمن بن فيصل", color: '#059669', colleges: [] }
 };
 
-// 🔥 1. دالة الذكاء (توحيد النصوص)
 const normalizeText = (text: string) => {
   if (!text) return "";
-  return text
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا') // يوحد الألف
-    .replace(/ة/g, 'ه')     // يوحد التاء المربوطة
-    .replace(/ى/g, 'ي')     // يوحد الياء
-    .replace(/[ًٌٍَُِّْ]/g, ''); // يشيل الحركات
+  return text.toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[ًٌٍَُِّْ]/g, '');
 };
 
 const getSmartColor = (percentage: number) => {
@@ -43,19 +39,33 @@ const getSmartColor = (percentage: number) => {
   return 'text-red-600 bg-red-900/20 border-red-900/30';
 };
 
+const PAGE_SIZE = 20;
+
 export default function Home() {
   const { selectedUni } = useUniversity();
   const [searchTerm, setSearchTerm] = useState('');
   const [courseSearchTerm, setCourseSearchTerm] = useState(''); 
   const [collegeSearchTerm, setCollegeSearchTerm] = useState('');
+  
+  // قوائم البيانات
   const [professors, setProfessors] = useState<any[]>([]); 
-  const [allTopProfessors, setAllTopProfessors] = useState<any[]>([]); 
+  const [eliteProfessors, setEliteProfessors] = useState<any[]>([]); 
   const [sortedColleges, setSortedColleges] = useState<any[]>([]);
-  const [coursesWithStats, setCoursesWithStats] = useState<{name: string, avg: number}[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [coursesWithStats, setCoursesWithStats] = useState<{course_name: string, avg_rating: number}[]>([]);
+  
+  // حالات التحميل
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Pagination State
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [visibleCoursesCount, setVisibleCoursesCount] = useState(10); 
+
+  // UI State
   const [isEliteOpen, setIsEliteOpen] = useState(false); 
   const [isCollegesOpen, setIsCollegesOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showCollegesMenu, setShowCollegesMenu] = useState(false);
   const [showCoursesMenu, setShowCoursesMenu] = useState(false);
@@ -65,33 +75,27 @@ export default function Home() {
   const primaryColor = currentConfig?.color || '#14b8a6';
   const universityName = currentConfig?.fullName || selectedUni?.name || 'الجامعة';
 
+  // 👇 هنا التعديل: Confetti Effect (مرة واحدة فقط)
   useEffect(() => {
-    const duration = 4 * 1000;
+    // 1. نشيك هل شاف الاحتفال من قبل؟
+    const hasSeenParty = localStorage.getItem('has_seen_launch_party');
+    if (hasSeenParty) return; // إذا شافه، نطلع
+
+    // 2. إذا ما شافه، نشغل الكود
+    const duration = 3 * 1000;
     const end = Date.now() + duration;
-
     const frame = () => {
-      confetti({
-        particleCount: 2,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.6 },
-        colors: ['#2dd4bf', '#fbbf24', '#ffffff']
-      });
-      confetti({
-        particleCount: 2,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.6 },
-        colors: ['#2dd4bf', '#fbbf24', '#ffffff']
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
+      confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ['#2dd4bf', '#fbbf24', '#ffffff'] });
+      confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ['#2dd4bf', '#fbbf24', '#ffffff'] });
+      if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
+
+    // 3. نحفظ في الذاكرة
+    localStorage.setItem('has_seen_launch_party', 'true');
   }, []);
 
+  // Click Outside Listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menusRef.current && !menusRef.current.contains(event.target as Node)) {
@@ -103,60 +107,56 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 1️⃣ جلب الإحصائيات (RPC)
   useEffect(() => {
     if (!selectedUni) return;
+    
     async function fetchStats() {
-      setIsLoadingData(true);
+      setIsStatsLoading(true);
       try {
-        const { data: allProfs } = await supabase.from('professors').select('*').eq('university_id', selectedUni.id);
+        const { data: allProfs } = await supabase
+          .from('professors')
+          .select('id, name, college, university_id')
+          .eq('university_id', selectedUni.id);
         
         if (!allProfs || allProfs.length === 0) {
-          setAllTopProfessors([]); setSortedColleges([]); setCoursesWithStats([]);
-          setIsLoadingData(false); return;
+          setEliteProfessors([]); setSortedColleges([]); setCoursesWithStats([]);
+          setIsStatsLoading(false); return;
         }
 
-        const professorIds = allProfs.map(p => p.id);
-        const { data: reviews } = await supabase.from('reviews').select('professor_id, rating, course, tags').in('professor_id', professorIds);
-        
-        const profStats: Record<string, { total: number, count: number, tags: string[] }> = {};
-        const courseMap: Record<string, { total: number, count: number }> = {}; 
+        const { data: reviews } = await supabase
+          .from('reviews')
+          .select('professor_id, rating, course')
+          .in('professor_id', allProfs.map(p => p.id));
+
+        const profStats: Record<string, { total: number, count: number }> = {};
+        const collegeMap: Record<string, { total: number, count: number }> = {};
 
         if (reviews) {
           reviews.forEach(r => {
-            if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0, tags: [] };
+            if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
             profStats[r.professor_id].total += (r.rating / 5) * 100;
             profStats[r.professor_id].count += 1;
-            if (r.tags) profStats[r.professor_id].tags.push(...r.tags);
-
-            if (r.course && r.course.trim()) {
-              const cName = r.course.trim();
-              if (!courseMap[cName]) courseMap[cName] = { total: 0, count: 0 };
-              courseMap[cName].total += (r.rating / 5) * 100;
-              courseMap[cName].count += 1;
-            }
           });
         }
 
-        const profsWithRatings = allProfs.map(p => {
-          const tagCounts: Record<string, number> = {};
-          profStats[p.id]?.tags.forEach(t => { if(!t.includes('طبيعي')) tagCounts[t] = (tagCounts[t] || 0) + 1 });
-          const topTags = Object.entries(tagCounts).sort((a,b) => b[1] - a[1]).slice(0, 3).map(t => t[0]);
-          return { ...p, percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : 0, topTags };
-        }).sort((a, b) => b.percent - a.percent);
-        
-        setAllTopProfessors(profsWithRatings);
+        const ratedProfs = allProfs.map(p => ({
+          ...p,
+          percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : 0,
+          count: profStats[p.id]?.count || 0
+        })).filter(p => p.count > 0).sort((a, b) => b.percent - a.percent).slice(0, 5);
 
-        const collegeMap: Record<string, { total: number, count: number }> = {};
-        profsWithRatings.forEach(p => {
+        setEliteProfessors(ratedProfs);
+
+        allProfs.forEach(p => {
           const cName = p.college?.trim();
-          if (cName) {
+          if (cName && profStats[p.id]) {
             if (!collegeMap[cName]) collegeMap[cName] = { total: 0, count: 0 };
-            collegeMap[cName].total += p.percent;
+            collegeMap[cName].total += profStats[p.id].total / profStats[p.id].count;
             collegeMap[cName].count += 1;
           }
         });
 
-        // استخدام بيانات الداتابيز للكليات
         const dbColleges = Array.from(new Set(allProfs.map(p => p.college?.trim()))).filter(Boolean);
         const configColleges = (currentConfig?.colleges || []).map(c => c.trim());
         const allUniqueColleges = Array.from(new Set([...configColleges, ...dbColleges]));
@@ -166,56 +166,123 @@ export default function Home() {
           percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
         })).sort((a, b) => b.percent - a.percent));
 
-        setCoursesWithStats(Object.entries(courseMap).map(([name, s]) => ({ 
-          name, 
-          avg: Math.round(s.total / s.count) 
-        })).sort((a, b) => b.avg - a.avg));
+        // طلب المواد من الدالة السريعة
+        const { data: coursesData, error: coursesError } = await supabase
+            .rpc('get_top_courses_by_university', { uni_id: selectedUni.id });
+
+        if (!coursesError && coursesData) {
+            setCoursesWithStats(coursesData);
+        }
 
       } catch (err) { console.error(err); }
-      setIsLoadingData(false);
+      setIsStatsLoading(false);
     }
     fetchStats();
-  }, [selectedUni, currentConfig]);
+  }, [selectedUni]);
 
-  // 🔥 2. لوجيك البحث الجديد (تأخير + تطبيع النصوص)
-  useEffect(() => {
-    const delaySearch = setTimeout(() => {
-      if (!searchTerm.trim()) {
-        setIsSearching(false);
-        if (searchTerm === '') setHasSearched(false);
-        return;
+
+  // 2️⃣ دالة جلب الدكاترة
+  const fetchProfessorsList = useCallback(async (isNewSearch = false, loadMore = false) => {
+    if (!selectedUni) return;
+    
+    if (isNewSearch) {
+      setIsListLoading(true);
+      setPage(0);
+      setHasMore(true);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    try {
+      const currentPage = isNewSearch ? 0 : page;
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
+        .from('professors')
+        .select('*')
+        .eq('university_id', selectedUni.id)
+        .order('cached_rating', { ascending: false, nullsFirst: false })
+        .range(from, to); 
+
+      if (searchTerm.trim()) {
+        const term = normalizeText(searchTerm);
+        query = query.or(`name.ilike.%${searchTerm}%,college.ilike.%${searchTerm}%`);
       }
 
-      setIsSearching(true);
-      setHasSearched(true);
-      setShowCollegesMenu(false);
-      setShowCoursesMenu(false);
+      const { data, error } = await query;
 
-      const normalizedTerm = normalizeText(searchTerm);
+      if (error) throw error;
 
-      const results = allTopProfessors.filter(p => {
-        const name = normalizeText(p.name);
-        const college = normalizeText(p.college || '');
-        const tags = p.topTags ? p.topTags.map((t: string) => normalizeText(t)).join(' ') : '';
-        
-        return name.includes(normalizedTerm) || 
-               college.includes(normalizedTerm) || 
-               tags.includes(normalizedTerm);
-      });
+      if (data) {
+        const profIds = data.map(p => p.id);
+        const { data: reviews } = await supabase
+          .from('reviews')
+          .select('professor_id, rating')
+          .in('professor_id', profIds);
 
-      setProfessors(results);
-      setIsSearching(false);
-    }, 300); // 300ms تأخير
+        const profStats: Record<string, { total: number, count: number }> = {};
+        if (reviews) {
+          reviews.forEach(r => {
+            if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
+            profStats[r.professor_id].total += (r.rating / 5) * 100;
+            profStats[r.professor_id].count += 1;
+          });
+        }
+
+        const dataWithRatings = data.map(p => ({
+          ...p,
+          percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : undefined
+        }));
+
+        if (isNewSearch) {
+          setProfessors(dataWithRatings);
+        } else {
+          setProfessors(prev => [...prev, ...dataWithRatings]);
+        }
+
+        if (data.length < PAGE_SIZE) {
+          setHasMore(false);
+        } else {
+          setPage(currentPage + 1);
+        }
+      }
+
+    } catch (err) {
+      console.error("Error fetching list:", err);
+    } finally {
+      setIsListLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [selectedUni, page, searchTerm]);
+
+
+  useEffect(() => {
+    const delaySearch = setTimeout(() => {
+      if (searchTerm.trim() !== '') {
+        setHasSearched(true);
+        setIsEliteOpen(false); 
+        setIsCollegesOpen(false);
+        fetchProfessorsList(true); 
+      } else {
+        setHasSearched(false);
+        setProfessors([]); 
+      }
+    }, 400); 
 
     return () => clearTimeout(delaySearch);
-  }, [searchTerm, allTopProfessors]);
+  }, [searchTerm]); 
 
-  // تحديث النص فقط، والـ useEffect يتولى الباقي
   const executeSearch = (term: string) => {
     setSearchTerm(term);
+    setHasSearched(true);
+    setShowCollegesMenu(false);
+    setShowCoursesMenu(false);
   };
 
-  const eliteProfessors = allTopProfessors.slice(0, 10);
+  const filteredCourses = coursesWithStats.filter(c => c.course_name.includes(courseSearchTerm));
+  const displayedCourses = filteredCourses.slice(0, visibleCoursesCount);
+
   if (!selectedUni) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-teal-500 font-bold animate-pulse">جاري التحميل...</div>;
 
   return (
@@ -243,8 +310,8 @@ export default function Home() {
 
         <div className="w-full space-y-2 mb-3">
             <div className="h-14 md:h-16 flex bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-slate-700 group-focus-within:border-teal-500 transition-all duration-300 shadow-xl relative overflow-hidden">
-                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && executeSearch(searchTerm)} placeholder="ابحث عن دكتور، مادة، أو تخصص..." className="flex-1 h-full px-6 bg-transparent outline-none text-white text-sm" />
-                <button onClick={() => executeSearch(searchTerm)} className="px-5 text-slate-400 hover:text-teal-400">{isSearching ? <Loader2 size={22} className="animate-spin" /> : <Search size={22} />}</button>
+                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="ابحث عن دكتور، مادة، أو تخصص..." className="flex-1 h-full px-6 bg-transparent outline-none text-white text-sm" />
+                <button className="px-5 text-slate-400 hover:text-teal-400">{isListLoading ? <Loader2 size={22} className="animate-spin" /> : <Search size={22} />}</button>
                 {hasSearched && <button onClick={() => { setHasSearched(false); setSearchTerm(''); }} className="px-4 text-red-400 hover:scale-110 transition-transform"><X size={20} /></button>}
             </div>
             
@@ -278,14 +345,25 @@ export default function Home() {
                     {showCoursesMenu && (
                         <div className="absolute top-0 right-0 left-0 mt-1 bg-slate-900 border border-slate-700 rounded-2xl p-4 z-50 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
                             <input placeholder="بحث في المقررات..." value={courseSearchTerm} onChange={(e) => setCourseSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white mb-3 outline-none focus:border-teal-500 transition-all" />
-                            <div className="max-h-48 overflow-y-auto space-y-2 custom-scrollbar">
-                                {coursesWithStats.filter(c => c.name.includes(courseSearchTerm)).length > 0 ? (
-                                  coursesWithStats.filter(c => c.name.includes(courseSearchTerm)).map((c, i) => ( 
-                                    <button key={i} onClick={() => executeSearch(c.name)} className="w-full flex items-center justify-between p-3 hover:bg-slate-800 rounded-xl transition-all"> 
-                                      <span className="text-slate-300 text-xs font-bold">{c.name}</span> 
-                                      <span className={`text-[10px] px-2 py-0.5 rounded-lg border font-black ${getSmartColor(c.avg)}`}>{c.avg}%</span> 
-                                    </button> 
-                                  ))
+                            <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar p-1">
+                                {displayedCourses.length > 0 ? (
+                                  <>
+                                    {displayedCourses.map((c, i) => ( 
+                                      <button key={i} onClick={() => executeSearch(c.course_name)} className="w-full flex items-center justify-between p-3 hover:bg-slate-800 rounded-xl transition-all"> 
+                                        <span className="text-slate-300 text-xs font-bold">{c.course_name}</span> 
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-lg border font-black ${getSmartColor(c.avg_rating)}`}>{c.avg_rating}%</span> 
+                                      </button> 
+                                    ))}
+                                    
+                                    {filteredCourses.length > visibleCoursesCount && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); setVisibleCoursesCount(prev => prev + 10); }}
+                                        className="w-full py-2 mt-2 flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-slate-800 text-teal-400 rounded-xl text-xs font-bold transition-all"
+                                      >
+                                        <Plus size={14} /> عرض المزيد
+                                      </button>
+                                    )}
+                                  </>
                                 ) : (
                                   <div className="text-center py-4 text-slate-500 text-xs">لا توجد مقررات مضافة بعد</div>
                                 )}
@@ -305,8 +383,8 @@ export default function Home() {
                 </button>
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isEliteOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden"><div className="p-4 pt-0 space-y-2">
-                        {allTopProfessors.length > 0 ? (
-                            eliteProfessors.slice(0, 3).map((p, i) => (
+                        {isStatsLoading ? <div className="text-center text-slate-500 py-2">جاري التحميل...</div> : eliteProfessors.length > 0 ? (
+                            eliteProfessors.map((p, i) => (
                                 <Link key={p.id} href={`/professor/${p.id}`} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/60 rounded-xl hover:bg-slate-800 transition-all group">
                                     <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30">{i + 1}</div><h3 className="font-bold text-slate-200 text-xs md:text-sm group-hover:text-teal-300 transition-colors">{p.name}</h3></div>
                                     <div className={`px-2 py-0.5 rounded-lg border font-black text-[10px] ${getSmartColor(p.percent)}`}>{p.percent}%</div>
@@ -324,7 +402,7 @@ export default function Home() {
                 </button>
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isCollegesOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden"><div className="p-4 pt-0 space-y-2">
-                        {sortedColleges.length > 0 ? (
+                        {isStatsLoading ? <div className="text-center text-slate-500 py-2">جاري التحميل...</div> : sortedColleges.length > 0 ? (
                             sortedColleges.slice(0, 3).map((c, i) => (
                                 <div key={i} onClick={() => executeSearch(c.name)} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-all">
                                     <h3 className="font-bold text-slate-300 text-xs">{c.name}</h3>
@@ -339,7 +417,7 @@ export default function Home() {
         )}
 
         {hasSearched && (
-          <div className="space-y-3 pb-10 animate-fade-in">
+          <div className="space-y-3 pb-10 animate-fade-in mt-4">
             {professors.map((prof) => (
               <Link key={prof.id} href={`/professor/${prof.id}`} className="flex items-center justify-between p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl hover:border-teal-500/30 hover:bg-slate-900 transition-all group">
                 <div className="flex items-center gap-4">
@@ -349,15 +427,30 @@ export default function Home() {
                 <div className="flex items-center gap-3">{prof.percent !== undefined && ( <div className={`px-2 py-0.5 rounded-lg border font-black text-[9px] ${getSmartColor(prof.percent)}`}>{prof.percent}%</div> )}<ArrowRight size={14} className="text-slate-600 rotate-180 group-hover:text-teal-400 transition-colors" /></div>
               </Link>
             ))}
+            
+            {hasMore && !isListLoading && professors.length > 0 && (
+                <button 
+                  onClick={() => fetchProfessorsList(false, true)}
+                  disabled={isLoadingMore}
+                  className="w-full py-3 mt-4 flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-700/50"
+                >
+                  {isLoadingMore ? <Loader2 className="animate-spin" size={16} /> : <ChevronDown size={16} />}
+                  <span className="text-xs font-bold">عرض المزيد من النتائج</span>
+                </button>
+            )}
+
+            {isListLoading && <div className="text-center py-8 text-teal-500 animate-pulse font-bold">جاري البحث...</div>}
+            
+            {!isListLoading && professors.length === 0 && (
+                <div className="text-center py-8 text-slate-500">لا توجد نتائج مطابقة</div>
+            )}
           </div>
         )}
       </main>
 
-      {/* 🔥 الفوتر الاحترافي (المضيء) 🔥 */}
+      {/* Footer */}
       <footer className="w-full py-8 mt-auto relative z-10 border-t border-slate-800/50 bg-slate-900/20 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 flex flex-col items-center gap-4 text-center">
-            
-            {/* الرسالة الخاصة مع الاحتفال والغمزة 😉 */}
             <div className="space-y-1.5 animate-pulse">
                 <p className="text-slate-300 text-xs md:text-sm font-medium flex items-center justify-center gap-2">
                     تم إطلاق هذا الموقع في يوم 23 يناير <span className="text-lg">🎉</span>
@@ -366,8 +459,6 @@ export default function Home() {
                     لا تنسى تنشر الموقع لاخوياك وللدفعه الي بعدك عشان تضمن وضعك <span className="text-sm">😉</span>
                 </p>
             </div>
-
-            {/* حقوق النشر لزيادة الهيبة */}
             <p className="text-slate-700 text-[10px] dir-ltr font-mono mt-2 opacity-50">
                 © 2026 Morshed Platform. All rights reserved.
             </p>
