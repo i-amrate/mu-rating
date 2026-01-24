@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
+// 👇 هنا أضفنا Reply الي كانت ناقصة
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -599,6 +600,7 @@ export default function ProfessorPage() {
               <Award className="text-teal-400" size={20} />
               <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
             </div>
+            {/* 🔥 الخط المعدل: نبض مستمر + وهج مضيء 🔥 */}
             <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 shadow-[0_0_15px_rgba(45,212,191,0.6)] animate-pulse"></div>
           </div>
           
