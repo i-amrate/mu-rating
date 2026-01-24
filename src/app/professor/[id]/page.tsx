@@ -15,25 +15,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 🔥 1. إعدادات أنواع الشارات وتصنيفها 🔥
 const BADGE_PRIORITY: Record<string, number> = {
   'positive': 1, 'neutral': 2, 'negative': 3
 };
 
 const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
-  // المجموعة 1: التحضير
   "ما يحضر": 'positive', "لين بالتحضير": 'positive', "تحضير_طبيعي": 'neutral', "شدييد بالتحضير": 'negative',
-  // المجموعة 2: الشرح
   "شرييح": 'positive', "شرحه عادي": 'neutral', "شرحه سيئ": 'negative',
-  // المجموعة 3: التعاون
   "متعاون": 'positive', "تعاون_طبيعي": 'neutral', "غير متعاون": 'negative',
-  // المجموعة 4: المشاريع
   "رهييب بالمشروع": 'positive', "مشروعه طبيعي": 'neutral', "شديد بالمشروع": 'negative',
-  // المجموعة 5: الاختبارات
   "اختباراته سهله": 'positive', "اختباراته وسط": 'neutral', "اختباراته صععبه": 'negative',
-  // المجموعة 6: الشخصية
   "عسسلل": 'positive', "محتررم": 'positive', "شخصية_طبيعية": 'neutral', "اخلاق": 'positive', "غثيث": 'negative', "وقح": 'negative',
-  // المجموعة 7: أخرى
   "يعطي بونص": 'positive', 
   "يدف بالتصحيح": 'positive', 
   "يعطيك حقك": 'positive',
@@ -79,7 +71,6 @@ const getBadgeLabel = (badge: string) => {
   return badge;
 };
 
-// 🔥 دالة التلوين 🔥
 const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
   let type = BADGE_TYPES[badge];
   if (!type) type = 'positive'; 
@@ -487,11 +478,9 @@ export default function ProfessorPage() {
     await supabase.rpc('increment_reply_likes', { reply_id: replyId });
   }
 
-  // 🔥 منطق اختيار المجموعات الجديد (يدعم التعدد في "أخرى") 🔥
   const toggleBadge = (badge: string, groupOptions: string[], groupId: string) => {
     let newBadges = [...selectedBadges];
     
-    // إذا كانت المجموعة "أخرى"، نسمح باختيار متعدد
     if (groupId === 'other') {
         if (newBadges.includes(badge)) {
             newBadges = newBadges.filter(b => b !== badge);
@@ -499,7 +488,6 @@ export default function ProfessorPage() {
             newBadges.push(badge);
         }
     } 
-    // إذا كانت شخصية (معقدة شوي)
     else if (groupId === 'personality') {
       const positiveTraits = ["محتررم", "عسسلل"];
       const negativeTraits = ["غثيث", "وقح"];
@@ -518,7 +506,6 @@ export default function ProfessorPage() {
         else newBadges.push(badge);
       }
     } 
-    // باقي المجموعات (اختيار واحد فقط)
     else {
       newBadges = newBadges.filter(b => !groupOptions.includes(b));
       if (!selectedBadges.includes(badge)) newBadges.push(badge);
@@ -536,9 +523,6 @@ export default function ProfessorPage() {
         alert("الرجاء تقييم الدكتور في جميع المعايير الأربعة");
         return;
     }
-
-    // 🔥 تم إلغاء شرط الإجبار هنا 🔥
-    // الآن الطالب حر يختار اللي يبي من الشارات أو يتركها
 
     setIsSubmitting(true);
     const overallRating = Math.round(((ratingAttendance + ratingTeaching + ratingBehavior + ratingGrading) / 4));
@@ -615,7 +599,6 @@ export default function ProfessorPage() {
               <Award className="text-teal-400" size={20} />
               <h3 className={`text-lg font-bold text-white ${cairoFont.className}`}>قيّم تجربتك</h3>
             </div>
-            {/* 🔥 الخط المعدل: نبض مستمر + وهج مضيء 🔥 */}
             <div className="h-1.5 w-full bg-gradient-to-l from-teal-400 via-emerald-500/70 to-transparent rounded-full mt-3 shadow-[0_0_15px_rgba(45,212,191,0.6)] animate-pulse"></div>
           </div>
           
