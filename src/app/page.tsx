@@ -98,100 +98,30 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 1️⃣ جلب الإحصائيات (الكليات + النخبة + المقررات عبر الدالة)
+  // 1️⃣ جلب الإحصائيات (الكليات + النخبة + المقررات عبر الدالة - RPC للسرعة والكاش)
   useEffect(() => {
     if (!selectedUni) return;
     
     async function fetchStats() {
       setIsStatsLoading(true);
       try {
-        // --- أولاً: جلب الدكاترة لحساب النخبة والكليات ---
-        const { data: allProfs } = await supabase
-          .from('professors')
-          .select('id, name, college, university_id')
-          .eq('university_id', selectedUni.id)
-          .range(0, 9999); 
-        
-        if (!allProfs || allProfs.length === 0) {
-          setEliteProfessors([]); setSortedColleges([]); setCoursesWithStats([]);
-          setIsStatsLoading(false); return;
-        }
+        // جلب النخبة
+        const { data: eliteData } = await supabase.rpc('get_elite_professors', { uni_id: selectedUni.id });
+        if (eliteData) setEliteProfessors(eliteData);
 
-        const profIds = allProfs.map(p => p.id);
-        const { data: reviews } = await supabase
-          .from('reviews')
-          .select('professor_id, rating') 
-          .in('professor_id', profIds);
+        // جلب الكليات
+        const { data: collegesData } = await supabase.rpc('get_college_rankings', { uni_id: selectedUni.id });
+        if (collegesData) setSortedColleges(collegesData);
 
-        const profStats: Record<string, { total: number, count: number }> = {};
-        
-        if (reviews) {
-          reviews.forEach(r => {
-            if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
-            profStats[r.professor_id].total += (r.rating / 5) * 100;
-            profStats[r.professor_id].count += 1;
-          });
-        }
-
-        // --- حساب النخبة (Client Side مؤقتاً) ---
-        const ratedProfs = allProfs.map(p => ({
-          ...p,
-          percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : 0,
-          count: profStats[p.id]?.count || 0
-        })).filter(p => p.count > 0 && p.percent > 0)
-          .sort((a, b) => b.percent - a.percent)
-          .slice(0, 10);
-
-        setEliteProfessors(ratedProfs);
-
-        // --- حساب الكليات (Client Side مؤقتاً) ---
-        const collegeMap: Record<string, { total: number, count: number }> = {};
-        const allCollegesSet = new Set<string>();
-
-        if (currentConfig?.colleges) {
-            currentConfig.colleges.forEach(c => allCollegesSet.add(c.trim()));
-        }
-
-        allProfs.forEach(p => {
-          const cName = p.college?.trim();
-          if (cName) {
-            allCollegesSet.add(cName);
-            if (profStats[p.id]) {
-                if (!collegeMap[cName]) collegeMap[cName] = { total: 0, count: 0 };
-                collegeMap[cName].total += profStats[p.id].total / profStats[p.id].count;
-                collegeMap[cName].count += 1;
-            }
-          }
-        });
-
-        const finalColleges = Array.from(allCollegesSet).map(name => ({ 
-          name, 
-          percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
-        }))
-        .filter(c => c.percent > 0)
-        .sort((a, b) => {
-            if (b.percent !== a.percent) return b.percent - a.percent;
-            return a.name.localeCompare(b.name);
-        });
-
-        setSortedColleges(finalColleges);
-
-        // --- 🔥🔥 جلب المقررات عبر الدالة (Server Side RPC) 🔥🔥 ---
-        const { data: coursesData, error: coursesError } = await supabase
-            .rpc('get_top_courses_by_university', { uni_id: selectedUni.id });
-
-        if (!coursesError && coursesData) {
-            // الدالة ترجع البيانات جاهزة بالنسب المئوية
-            setCoursesWithStats(coursesData);
-        } else {
-            console.error("RPC Error:", coursesError);
-        }
+        // جلب المقررات
+        const { data: coursesData } = await supabase.rpc('get_top_courses_by_university', { uni_id: selectedUni.id });
+        if (coursesData) setCoursesWithStats(coursesData);
 
       } catch (err) { console.error(err); }
       setIsStatsLoading(false);
     }
     fetchStats();
-  }, [selectedUni, currentConfig]);
+  }, [selectedUni]);
 
 
   // 2️⃣ دالة البحث

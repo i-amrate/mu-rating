@@ -918,10 +918,18 @@ export default function ProfessorPage() {
                   <div className="p-6">
                       <p className="text-slate-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{review.content}</p>
                       
+                      {/* 🔥👇 هنا التعديل: السهم والنص تحت الوصف مباشرة 👇🔥 */}
+                      {!expandedStats.has(review.id) && (
+                          <div className="mt-3 sm:hidden">
+                               <button className="text-slate-500 w-full flex justify-start hover:text-teal-400 transition-colors">
+                                   <ChevronDown size={16} className="animate-bounce" />
+                               </button>
+                          </div>
+                      )}
+
                       {/* 🔥 قسم التفاصيل المخفية */}
                       {expandedStats.has(review.id) && (
                           <div className="mt-6 pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
-                              {/* 🔥 تم تغيير الأيقونة هنا */}
                               <div className="flex items-center gap-2 mb-3 text-teal-400 text-xs font-bold">
                                   <SlidersHorizontal size={14} /> تفاصيل التقييم
                               </div>
@@ -946,14 +954,11 @@ export default function ProfessorPage() {
                         </button>
                     </div>
                     
-                    {/* 👇👇👇 التعديل الكبير هنا: إخفاء النص بالجوال واستبداله بالسهم */}
+                    {/* 🔥👇 هنا التعديل: السهم والنص في الفوتر للابتوب فقط 👇🔥 */}
                     {!expandedStats.has(review.id) && (
-                        <div className="flex items-center">
-                             <span className="text-[10px] text-slate-500 flex items-center gap-1 hover:text-teal-400 transition-colors">
-                                 <span className="hidden sm:inline">اضغط للتفاصيل</span> {/* يظهر فقط بالكمبيوتر */}
-                                 <ChevronDown size={16} className="animate-bounce" /> {/* يظهر للكل وينبض */}
-                             </span>
-                        </div>
+                         <button className="hidden sm:flex items-center gap-1 text-[10px] text-slate-500 hover:text-teal-400 transition-colors">
+                             <ChevronDown size={12} /> اضغط للتفاصيل
+                         </button>
                     )}
 
                     <CompactDate dateString={review.created_at} />
@@ -969,7 +974,7 @@ export default function ProfessorPage() {
                       </div>
                       <div className="pr-2 md:pr-4">
                         {review.replies?.filter((r:any) => !r.parent_id).map((reply: any) => (
-                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
+                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submitting} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
                         ))}
                       </div>
                     </div>
