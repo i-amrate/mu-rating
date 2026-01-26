@@ -3,8 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-// 👇 هنا أضفنا Reply الي كانت ناقصة
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile, ChevronDown, Sparkles } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -21,39 +20,73 @@ const BADGE_PRIORITY: Record<string, number> = {
 };
 
 const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
+  // التحضير
   "ما يحضر": 'positive', "لين بالتحضير": 'positive', "تحضير_طبيعي": 'neutral', "شدييد بالتحضير": 'negative',
-  "شرييح": 'positive', "شرحه عادي": 'neutral', "شرحه سيئ": 'negative',
-  "متعاون": 'positive', "تعاون_طبيعي": 'neutral', "غير متعاون": 'negative',
+  
+  // الشرح 
+  "شرحه خرررااافي 🤯": 'positive', 
+  "شرحه حلو": 'positive', 
+  "شرحه عادي": 'neutral', 
+  "شرحه لك عليه": 'negative',
+  "شرحه يبي له شرح": 'negative', // بدون إيموجي
+
+  // المشاريع
   "رهييب بالمشروع": 'positive', "مشروعه طبيعي": 'neutral', "شديد بالمشروع": 'negative',
+  
+  // الاختبارات
   "اختباراته سهله": 'positive', "اختباراته وسط": 'neutral', "اختباراته صععبه": 'negative',
-  "عسسلل": 'positive', "محتررم": 'positive', "شخصية_طبيعية": 'neutral', "اخلاق": 'positive', "غثيث": 'negative', "وقح": 'negative',
-  "يعطي بونص": 'positive', 
+  
+  // منقولة ومدمجة
+  "متعاون": 'positive', "غير متعاون": 'negative',
+  "عسسلل": 'positive', "محتررم": 'positive', "اخلاق": 'positive',
+  "تعامل غير جيد": 'negative', "صعب في التعامل": 'negative',
+
+  // الصفات الأخرى 
+  "يعطي بونص 🎁": 'positive', 
   "يدف بالتصحيح": 'positive', 
   "يعطيك حقك": 'positive',
   "شديد بالتصحيح": 'negative', 
   "محاضرته ممتعه": 'positive', 
   "محاضرته ممله": 'negative',
-  "أسئلته مكررة": 'positive'
+  "أسئلته مكررة": 'positive',
+  "أسئلة من بين السطور": 'negative',
+  "ما اعرف احد جاب درجة كاملة": 'negative',
+  "ياخذ المحاضرة كاملة": 'negative',
+  "افضل دكتور بالعالم 🤩": 'positive',
+  "يحببك بالماده ❤️": 'positive',
+  "مستحيل ادرس عنده مره ثانيه 💀": 'negative',
+  "خذ عنده وانت مغمض 😴": 'positive',
+  "تحتاج مصدر ثاني عشان تفهم الماده": 'negative',
+  "محاضرة طويله": 'negative'
 };
 
 const BADGE_GROUPS = [
   { id: 'attendance', label: 'التحضير', options: ["ما يحضر", "لين بالتحضير", "تحضير_طبيعي", "شدييد بالتحضير"] },
-  { id: 'explanation', label: 'الشرح', options: ["شرييح", "شرحه عادي", "شرحه سيئ"] },
-  { id: 'cooperation', label: 'التعاون', options: ["متعاون", "تعاون_طبيعي", "غير متعاون"] },
+  { id: 'explanation', label: 'الشرح', options: ["شرحه خرررااافي 🤯", "شرحه حلو", "شرحه عادي", "شرحه لك عليه", "شرحه يبي له شرح"] },
   { id: 'projects', label: 'المشاريع', options: ["رهييب بالمشروع", "مشروعه طبيعي", "شديد بالمشروع"] },
   { id: 'exams', label: 'الاختبارات', options: ["اختباراته سهله", "اختباراته وسط", "اختباراته صععبه"] },
-  { id: 'personality', label: 'الشخصية', options: ["عسسلل", "محتررم", "شخصية_طبيعية", "غثيث", "وقح"] },
   { 
     id: 'other', 
     label: 'أخرى', 
     options: [
-        "يعطي بونص", 
+        "متعاون", "غير متعاون",
+        "عسسلل", "محتررم", "اخلاق", "تعامل غير جيد", "صعب في التعامل",
+        "يعطي بونص 🎁", 
         "يدف بالتصحيح", 
         "يعطيك حقك", 
         "شديد بالتصحيح", 
         "محاضرته ممتعه", 
         "محاضرته ممله", 
-        "أسئلته مكررة"
+        "أسئلته مكررة",
+        "أسئلة من بين السطور",
+        "ما اعرف احد جاب درجة كاملة",
+        "ياخذ المحاضرة كاملة",
+        "افضل دكتور بالعالم 🤩",
+        "يحببك بالماده ❤️",
+        "مستحيل ادرس عنده مره ثانيه 💀",
+        "خذ عنده وانت مغمض 😴",
+        "تحتاج مصدر ثاني عشان تفهم الماده",
+        "محاضرة طويله"
     ] 
   }
 ];
@@ -68,30 +101,40 @@ const sortBadges = (tags: string[]) => {
 };
 
 const getBadgeLabel = (badge: string) => {
-  if (badge.includes('_طبيعي') || badge === 'مشروعه طبيعي' || badge === 'اختباراته وسط' || badge === 'شرحه عادي') return "طبيعي";
   return badge;
 };
 
-const getBadgeColorStyle = (badge: string, isSelected: boolean) => {
+const isBadgeGlowing = (badge: string, glowingTags: Set<string>) => {
+    return glowingTags.has(badge);
+};
+
+const getBadgeColorStyle = (badge: string, isSelected: boolean, isGlowing: boolean) => {
   let type = BADGE_TYPES[badge];
   if (!type) type = 'positive'; 
 
-  if (type === 'neutral') {
-     if (isSelected) return 'bg-slate-600 text-white border-slate-500 shadow-lg';
-     return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
-  }
-
   if (isSelected) {
+    // إذا تم اختياره (سواء كان مميز أو لا)
     switch (type) {
-      case 'positive': return 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40';
-      case 'negative': return 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/40';
-      default: return 'bg-slate-600 text-white border-slate-500 shadow-lg';
+      case 'positive': return `bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40`;
+      case 'negative': return `bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/40`;
+      default: return `bg-slate-600 text-white border-slate-500 shadow-lg`;
     }
   } else {
+    // إذا لم يتم اختياره (هنا نطبق التغميق للصفة الفائزة)
+    if (type === 'neutral') {
+        return isGlowing 
+           ? `bg-slate-700 text-slate-300 border-slate-500 font-bold` // فائزة (أغمق وأوضح)
+           : `bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500`;
+    }
+
     switch (type) {
-      case 'positive': return 'bg-emerald-500/5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10';
-      case 'negative': return 'bg-red-500/5 text-red-400 border-red-500/30 hover:bg-red-500/10';
-      default: return 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500';
+      case 'positive': return isGlowing
+        ? `bg-emerald-500/20 text-emerald-400 border-emerald-500/60 font-bold` // فائزة (أغمق وأوضح)
+        : `bg-emerald-500/5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10`;
+      case 'negative': return isGlowing
+        ? `bg-red-500/20 text-red-400 border-red-500/60 font-bold` // فائزة (أغمق وأوضح)
+        : `bg-red-500/5 text-red-400 border-red-500/30 hover:bg-red-500/10`;
+      default: return `bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500`;
     }
   }
 };
@@ -210,6 +253,29 @@ const SuperSmartCircle = ({ percentage }: { percentage: number }) => {
   );
 };
 
+const MiniStatBar = ({ label, value }: { label: string, value: number }) => {
+    const percentage = value > 0 ? (value / 5) * 100 : 0;
+    let colorClass = "bg-slate-600";
+    if (percentage >= 80) colorClass = "bg-emerald-500";
+    else if (percentage >= 60) colorClass = "bg-yellow-500";
+    else if (percentage > 0) colorClass = "bg-red-500";
+
+    return (
+        <div className="flex flex-col gap-1 w-full">
+            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                <span>{label}</span>
+                <span>{value > 0 ? `${Math.round(percentage)}%` : '-'}</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                    className={`h-full rounded-full transition-all duration-700 ${colorClass}`}
+                    style={{ width: `${percentage}%` }}
+                ></div>
+            </div>
+        </div>
+    );
+};
+
 const StatBar = ({ label, value, icon: Icon, colorClass, bgClass }: { label: string, value: number, icon: any, colorClass: string, bgClass: string }) => {
     const [width, setWidth] = useState(0);
     const percentage = value > 0 ? (value / 5) * 100 : 0;
@@ -234,7 +300,9 @@ const StatBar = ({ label, value, icon: Icon, colorClass, bgClass }: { label: str
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">{statusText}</span>
-                    <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 rounded">{value > 0 ? value.toFixed(1) : '-'}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 rounded">
+                        {value > 0 ? `${Math.round(percentage)}%` : '-'}
+                    </span>
                 </div>
             </div>
             <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden relative">
@@ -355,6 +423,7 @@ export default function ProfessorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
+  const [expandedStats, setExpandedStats] = useState<Set<string>>(new Set());
   const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -405,10 +474,33 @@ export default function ProfessorPage() {
   const avgBehavior = calculateAvg('rating_behavior');
   const avgGrading = calculateAvg('rating_grading');
   
+  const getGlobalGlowingTags = () => {
+    const counts: Record<string, number> = {};
+    reviews.forEach(r => {
+        r.tags?.forEach((t: string) => {
+            counts[t] = (counts[t] || 0) + 1;
+        });
+    });
+
+    const glowing = new Set<string>();
+    BADGE_GROUPS.forEach(group => {
+        const groupTags = group.options;
+        const sortedGroupTags = groupTags
+            .filter(t => counts[t] > 0)
+            .sort((a, b) => counts[b] - counts[a]);
+        
+        const limit = group.id === 'other' ? 2 : 1;
+        sortedGroupTags.slice(0, limit).forEach(t => glowing.add(t));
+    });
+    return glowing;
+  };
+  
+  const glowingTags = getGlobalGlowingTags();
+
   const getTopBadges = () => {
     const badgeCounts: Record<string, number> = {};
     reviews.forEach(r => { r.tags?.forEach((t: string) => { 
-        if(!t.includes('طبيعي')) {
+        if(!t.includes('طبيعي') && !t.includes('عادي') && !t.includes('وسط')) {
             const label = t; 
             badgeCounts[label] = (badgeCounts[label] || 0) + 1; 
         }
@@ -440,7 +532,8 @@ export default function ProfessorPage() {
     return 0;
   });
 
-  const toggleReplies = (reviewId: string) => {
+  const toggleReplies = (e: any, reviewId: string) => {
+    e.stopPropagation(); 
     const newExpanded = new Set(expandedReviews);
     if (newExpanded.has(reviewId)) {
         newExpanded.delete(reviewId);
@@ -450,6 +543,13 @@ export default function ProfessorPage() {
         setActiveReplyId(reviewId);
     }
     setExpandedReviews(newExpanded);
+  };
+
+  const toggleStats = (reviewId: string) => {
+    const newExpanded = new Set(expandedStats);
+    if (newExpanded.has(reviewId)) newExpanded.delete(reviewId);
+    else newExpanded.add(reviewId);
+    setExpandedStats(newExpanded);
   };
 
   async function handleLike(reviewId: string) {
@@ -483,29 +583,24 @@ export default function ProfessorPage() {
     let newBadges = [...selectedBadges];
     
     if (groupId === 'other') {
+        const opposites: Record<string, string[]> = {
+            "متعاون": ["غير متعاون"],
+            "غير متعاون": ["متعاون"],
+            "عسسلل": ["تعامل غير جيد", "صعب في التعامل"],
+            "محتررم": ["تعامل غير جيد", "صعب في التعامل"],
+            "اخلاق": ["تعامل غير جيد", "صعب في التعامل"],
+            "تعامل غير جيد": ["عسسلل", "محتررم", "اخلاق"],
+            "صعب في التعامل": ["عسسلل", "محتررم", "اخلاق"],
+        };
+
         if (newBadges.includes(badge)) {
             newBadges = newBadges.filter(b => b !== badge);
         } else {
+            if (opposites[badge]) {
+                newBadges = newBadges.filter(b => !opposites[badge].includes(b));
+            }
             newBadges.push(badge);
         }
-    } 
-    else if (groupId === 'personality') {
-      const positiveTraits = ["محتررم", "عسسلل"];
-      const negativeTraits = ["غثيث", "وقح"];
-      
-      if (badge === "شخصية_طبيعية") {
-        newBadges = newBadges.filter(b => !groupOptions.includes(b));
-        if (!selectedBadges.includes("شخصية_طبيعية")) newBadges.push("شخصية_طبيعية");
-      } else {
-        newBadges = newBadges.filter(b => b !== "شخصية_طبيعية"); 
-        
-        const isPositiveSelection = positiveTraits.includes(badge);
-        if (isPositiveSelection) newBadges = newBadges.filter(b => !negativeTraits.includes(b));
-        else newBadges = newBadges.filter(b => !positiveTraits.includes(b));
-        
-        if (newBadges.includes(badge)) newBadges = newBadges.filter(b => b !== badge);
-        else newBadges.push(badge);
-      }
     } 
     else {
       newBadges = newBadges.filter(b => !groupOptions.includes(b));
@@ -516,8 +611,12 @@ export default function ProfessorPage() {
 
   async function handleSubmit(e: any) {
     e.preventDefault();
-    if (!grade || !newReview.trim() || !course.trim()) {
-        alert("الرجاء تعبئة جميع الحقول المطلوبة (المقرر، الدرجة، التجربة)");
+    if (!grade || !newReview.trim()) {
+        alert("الرجاء تعبئة الدرجة والتجربة");
+        return;
+    }
+    if (selectedBadges.length < 4) {
+        alert("الرجاء اختيار 4 صفات على الأقل لوصف تجربتك بدقة");
         return;
     }
     if (ratingAttendance === 0 || ratingTeaching === 0 || ratingBehavior === 0 || ratingGrading === 0) {
@@ -526,14 +625,14 @@ export default function ProfessorPage() {
     }
 
     setIsSubmitting(true);
-    const overallRating = Math.round(((ratingAttendance + ratingTeaching + ratingBehavior + ratingGrading) / 4));
+    const overallRating = ((ratingAttendance + ratingTeaching + ratingBehavior + ratingGrading) / 4);
 
     const { error } = await supabase.from('reviews').insert([{ 
         content: newReview, 
         rating: overallRating, 
         grade, 
         professor_id: professor.id,
-        course: course,
+        course: course, 
         rating_attendance: ratingAttendance,
         rating_teaching: ratingTeaching,
         rating_behavior: ratingBehavior,
@@ -607,7 +706,8 @@ export default function ProfessorPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر <span className="text-red-500">*</span></label>
+                    {/* 🔥 المقرر صار اختياري */}
+                    <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر (اختياري)</label>
                     <div className="relative">
                         <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
                         <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
@@ -641,20 +741,20 @@ export default function ProfessorPage() {
             <div>
                 <div className="flex items-center gap-2 mb-4 group/hint relative w-fit">
                     <label className="text-xs font-bold text-slate-400 block flex items-center gap-1 cursor-pointer">
-                        <Tag size={12}/> اختر الصفات (اختياري)
+                        <Tag size={12}/> اختر الصفات (4 على الأقل) <span className="text-red-500">*</span>
                     </label>
                 </div>
                 <div className="space-y-4">
                     {BADGE_GROUPS.map((group) => (
-                        <div key={group.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-[10px] text-slate-500 font-bold w-16 shrink-0">{group.label}:</span>
+                        <div key={group.id} className="flex flex-col sm:flex-row sm:items-start gap-2">
+                            <span className="text-[10px] text-slate-500 font-bold w-16 shrink-0 pt-2">{group.label}:</span>
                             <div className="flex flex-wrap gap-2">
                                 {group.options.map(badge => (
                                     <button 
                                         key={badge} 
                                         type="button" 
                                         onClick={() => toggleBadge(badge, group.options, group.id)} 
-                                        className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${getBadgeColorStyle(badge, selectedBadges.includes(badge))}`}
+                                        className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all duration-200 font-medium ${getBadgeColorStyle(badge, selectedBadges.includes(badge), isBadgeGlowing(badge, glowingTags))}`}
                                     >
                                         {getBadgeLabel(badge)}
                                     </button>
@@ -774,7 +874,7 @@ export default function ProfessorPage() {
               <p className="text-center text-slate-500 py-6 text-sm">لا توجد تقييمات بعد!</p>
             ) : (
               sortedReviews.map((review) => (
-                <div key={review.id} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl overflow-hidden hover:border-teal-500/10 transition-all group/card shadow-sm relative">
+                <div key={review.id} onClick={() => toggleStats(review.id)} className="bg-slate-900/40 border border-slate-700/50 rounded-3xl overflow-hidden hover:border-teal-500/10 transition-all group/card shadow-sm relative cursor-pointer">
                   
                   {/* الهيدر المنفصل */}
                   <div className="bg-slate-900/60 p-5 border-b border-slate-800">
@@ -816,27 +916,44 @@ export default function ProfessorPage() {
                       )}
                   </div>
 
-                  {/* منطقة النص */}
+                  {/* منطقه النص */}
                   <div className="p-6">
                       <p className="text-slate-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{review.content}</p>
+                      
+                      {/* 🔥 قسم التفاصيل المخفية */}
+                      {expandedStats.has(review.id) && (
+                          <div className="mt-6 pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="flex items-center gap-2 mb-3 text-teal-400 text-xs font-bold">
+                                  <Sparkles size={14} /> تفاصيل التقييم
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-950/30 p-4 rounded-xl border border-slate-800">
+                                  <MiniStatBar label="التحضير" value={review.rating_attendance} />
+                                  <MiniStatBar label="الشرح" value={review.rating_teaching} />
+                                  <MiniStatBar label="الأخلاق" value={review.rating_behavior} />
+                                  <MiniStatBar label="الدرجات" value={review.rating_grading} />
+                              </div>
+                          </div>
+                      )}
                   </div>
                   
                   {/* الفوتر */}
                   <div className="bg-slate-900/30 px-6 py-3 flex items-center justify-between border-t border-slate-800/50">
                     <div className="flex gap-4">
-                        <button onClick={() => handleLike(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${likedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                        <button onClick={(e) => {e.stopPropagation(); handleLike(review.id)}} className={`flex items-center gap-2 text-xs font-bold transition-colors ${likedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
                         <ThumbsUp size={16} className={likedReviews.has(review.id) ? "fill-teal-400" : ""} /> <span>{review.likes_count || 0}</span>
                         </button>
-                        <button onClick={() => toggleReplies(review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${expandedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
+                        <button onClick={(e) => toggleReplies(e, review.id)} className={`flex items-center gap-2 text-xs font-bold transition-colors ${expandedReviews.has(review.id) ? 'text-teal-400' : 'text-slate-500 hover:text-teal-400'}`}>
                         <MessageCircle size={16} /> <span>{expandedReviews.has(review.id) ? 'إخفاء الردود' : `الردود (${review.replies?.length || 0})`}</span>
                         </button>
                     </div>
+                    {/* 👇 شلنا animate-pulse من هنا */}
+                    {!expandedStats.has(review.id) && <span className="text-[10px] text-slate-600 flex items-center gap-1"><ChevronDown size={12}/> اضغط للتفاصيل</span>}
                     <CompactDate dateString={review.created_at} />
                   </div>
 
                   {/* قسم الردود */}
                   {expandedReviews.has(review.id) && (
-                    <div className="p-6 pt-0 space-y-2 border-t border-slate-800/50 bg-slate-900/20">
+                    <div className="p-6 pt-0 space-y-2 border-t border-slate-800/50 bg-slate-900/20" onClick={(e) => e.stopPropagation()}>
                       <div className={`mt-4 flex gap-3 items-center bg-slate-900/80 border p-3 rounded-2xl transition-all mb-6 ${activeReplyId === review.id ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-slate-800'}`}>
                         <CornerDownRight className="text-slate-600" size={18} />
                         <input value={activeReplyId === review.id ? replyContent : ''} onChange={(e) => { setActiveReplyId(review.id); setReplyContent(e.target.value); }} onFocus={() => setActiveReplyId(review.id)} placeholder="اكتب ردك هنا..." className="flex-grow bg-transparent border-none text-sm focus:outline-none text-white" onKeyDown={(e) => { if (e.key === 'Enter') submitReply(review.id); }} />
@@ -852,7 +969,7 @@ export default function ProfessorPage() {
                 </div>
               ))
             )}
-          </div>
+          </div>ئ
         </div>
       </main>
     </div>

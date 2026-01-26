@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import { useUniversity } from '../context/UniversityContext';
-import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, ChevronLeft, User, Loader2, ChevronDown, Plus } from 'lucide-react';
+import { Search, UserRoundPlus, LayoutGrid, ArrowRight, X, Trophy, BookOpen, ChevronLeft, User, Loader2, ChevronDown, Plus, ChevronUp, UserPlus } from 'lucide-react';
 import { Amiri } from 'next/font/google';
 import confetti from 'canvas-confetti';
 
@@ -26,6 +26,7 @@ const UNIVERSITY_CONFIG: Record<string, { fullName: string, color: string, colle
 };
 
 const getSmartColor = (percentage: number) => {
+  if (percentage === 0 || !percentage) return 'text-sky-400 bg-sky-500/10 border-sky-500/20';
   if (percentage >= 90) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)]';
   if (percentage >= 75) return 'text-green-400 bg-green-500/10 border-green-500/20';
   if (percentage >= 60) return 'text-lime-400 bg-lime-500/10 border-lime-500/20';
@@ -57,6 +58,9 @@ export default function Home() {
 
   const [isEliteOpen, setIsEliteOpen] = useState(false); 
   const [isCollegesOpen, setIsCollegesOpen] = useState(false);
+  const [visibleEliteCount, setVisibleEliteCount] = useState(3);
+  const [visibleCollegesCount, setVisibleCollegesCount] = useState(3);
+
   const [hasSearched, setHasSearched] = useState(false);
   const [showCollegesMenu, setShowCollegesMenu] = useState(false);
   const [showCoursesMenu, setShowCoursesMenu] = useState(false);
@@ -94,13 +98,14 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 1️⃣ جلب الإحصائيات (الكليات + النخبة)
+  // 1️⃣ جلب الإحصائيات (الكليات + النخبة + المقررات عبر الدالة)
   useEffect(() => {
     if (!selectedUni) return;
     
     async function fetchStats() {
       setIsStatsLoading(true);
       try {
+        // --- أولاً: جلب الدكاترة لحساب النخبة والكليات ---
         const { data: allProfs } = await supabase
           .from('professors')
           .select('id, name, college, university_id')
@@ -115,7 +120,7 @@ export default function Home() {
         const profIds = allProfs.map(p => p.id);
         const { data: reviews } = await supabase
           .from('reviews')
-          .select('professor_id, rating')
+          .select('professor_id, rating') 
           .in('professor_id', profIds);
 
         const profStats: Record<string, { total: number, count: number }> = {};
@@ -128,14 +133,18 @@ export default function Home() {
           });
         }
 
+        // --- حساب النخبة (Client Side مؤقتاً) ---
         const ratedProfs = allProfs.map(p => ({
           ...p,
           percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : 0,
           count: profStats[p.id]?.count || 0
-        })).filter(p => p.count > 0).sort((a, b) => b.percent - a.percent).slice(0, 5);
+        })).filter(p => p.count > 0 && p.percent > 0)
+          .sort((a, b) => b.percent - a.percent)
+          .slice(0, 10);
 
         setEliteProfessors(ratedProfs);
 
+        // --- حساب الكليات (Client Side مؤقتاً) ---
         const collegeMap: Record<string, { total: number, count: number }> = {};
         const allCollegesSet = new Set<string>();
 
@@ -158,18 +167,24 @@ export default function Home() {
         const finalColleges = Array.from(allCollegesSet).map(name => ({ 
           name, 
           percent: collegeMap[name] && collegeMap[name].count > 0 ? Math.round(collegeMap[name].total / collegeMap[name].count) : 0 
-        })).sort((a, b) => {
+        }))
+        .filter(c => c.percent > 0)
+        .sort((a, b) => {
             if (b.percent !== a.percent) return b.percent - a.percent;
             return a.name.localeCompare(b.name);
         });
 
         setSortedColleges(finalColleges);
 
+        // --- 🔥🔥 جلب المقررات عبر الدالة (Server Side RPC) 🔥🔥 ---
         const { data: coursesData, error: coursesError } = await supabase
             .rpc('get_top_courses_by_university', { uni_id: selectedUni.id });
 
         if (!coursesError && coursesData) {
+            // الدالة ترجع البيانات جاهزة بالنسب المئوية
             setCoursesWithStats(coursesData);
+        } else {
+            console.error("RPC Error:", coursesError);
         }
 
       } catch (err) { console.error(err); }
@@ -179,7 +194,7 @@ export default function Home() {
   }, [selectedUni, currentConfig]);
 
 
-  // 🔥🔥🔥 2️⃣ دالة البحث "السريعة جداً" (RPC) 🔥🔥🔥
+  // 2️⃣ دالة البحث
   const fetchProfessorsList = useCallback(async (isNewSearch = false, loadMore = false) => {
     if (!selectedUni) return;
     
@@ -243,7 +258,7 @@ export default function Home() {
 
         const dataWithRatings = resultData.map((p: any) => ({
           ...p,
-          percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : undefined
+          percent: profStats[p.id] ? Math.round(profStats[p.id].total / profStats[p.id].count) : 0 
         }));
 
         if (isNewSearch) {
@@ -394,13 +409,20 @@ export default function Home() {
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isEliteOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden"><div className="p-4 pt-0 space-y-2">
                         {isStatsLoading ? <div className="text-center text-slate-500 py-2">جاري التحميل...</div> : eliteProfessors.length > 0 ? (
-                            eliteProfessors.map((p, i) => (
-                                <Link key={p.id} href={`/professor/${p.id}`} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/60 rounded-xl hover:bg-slate-800 transition-all group">
-                                    <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30">{i + 1}</div><h3 className="font-bold text-slate-200 text-xs md:text-sm group-hover:text-teal-300 transition-colors">{p.name}</h3></div>
-                                    <div className={`px-2 py-0.5 rounded-lg border font-black text-[10px] ${getSmartColor(p.percent)}`}>{p.percent}%</div>
-                                </Link>
-                            ))
-                        ) : <div className="text-center py-2 text-slate-500 text-xs">لا يوجد بيانات</div>}
+                            <>
+                                {eliteProfessors.slice(0, visibleEliteCount).map((p, i) => (
+                                    <Link key={p.id} href={`/professor/${p.id}`} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/60 rounded-xl hover:bg-slate-800 transition-all group">
+                                        <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30">{i + 1}</div><h3 className="font-bold text-slate-200 text-xs md:text-sm group-hover:text-teal-300 transition-colors">{p.name}</h3></div>
+                                        <div className={`px-2 py-0.5 rounded-lg border font-black text-[10px] ${getSmartColor(p.percent)}`}>{p.percent}%</div>
+                                    </Link>
+                                ))}
+                                {visibleEliteCount < Math.min(10, eliteProfessors.length) && (
+                                    <button onClick={() => setVisibleEliteCount(Math.min(10, eliteProfessors.length))} className="w-full py-1 text-xs text-[#D4AF37] hover:text-[#fcf6ba] font-bold mt-1 flex items-center justify-center gap-1 transition-colors">
+                                        عرض المزيد <ChevronDown size={12} />
+                                    </button>
+                                )}
+                            </>
+                        ) : <div className="text-center py-2 text-slate-500 text-xs">لا يوجد بيانات كافية</div>}
                     </div></div>
                 </div>
             </section>
@@ -413,13 +435,20 @@ export default function Home() {
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isCollegesOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                   <div className="overflow-hidden"><div className="p-4 pt-0 space-y-2">
                         {isStatsLoading ? <div className="text-center text-slate-500 py-2">جاري التحميل...</div> : sortedColleges.length > 0 ? (
-                            sortedColleges.slice(0, 3).map((c, i) => (
-                                <div key={i} onClick={() => executeSearch(c.name)} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-all">
-                                    <h3 className="font-bold text-slate-300 text-xs">{c.name}</h3>
-                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${getSmartColor(c.percent)}`}>{c.percent}%</span>
-                                </div>
-                            ))
-                        ) : <div className="text-center py-2 text-slate-500 text-xs">لا توجد بيانات</div>}
+                            <>
+                                {sortedColleges.slice(0, visibleCollegesCount).map((c, i) => (
+                                    <div key={i} onClick={() => executeSearch(c.name)} className="flex items-center justify-between p-3 bg-slate-950/50 border border-slate-800/50 rounded-xl cursor-pointer hover:bg-slate-800 transition-all">
+                                        <h3 className="font-bold text-slate-300 text-xs">{c.name}</h3>
+                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${getSmartColor(c.percent)}`}>{c.percent}%</span>
+                                    </div>
+                                ))}
+                                {visibleCollegesCount < Math.min(10, sortedColleges.length) && (
+                                    <button onClick={() => setVisibleCollegesCount(Math.min(10, sortedColleges.length))} className="w-full py-1 text-xs text-[#D4AF37] hover:text-[#fcf6ba] font-bold mt-1 flex items-center justify-center gap-1 transition-colors">
+                                        عرض المزيد <ChevronDown size={12} />
+                                    </button>
+                                )}
+                            </>
+                        ) : <div className="text-center py-2 text-slate-500 text-xs">لا توجد بيانات كافية</div>}
                     </div></div>
                 </div>
             </section>
@@ -434,7 +463,7 @@ export default function Home() {
                     <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:border-teal-500/30 transition-colors"><User size={18} className="text-slate-400 group-hover:text-teal-400" /></div>
                     <div><div className="w-fit border-b-2 border-teal-500/50 pb-1 mb-1 group-hover:border-teal-400 transition-colors"><span className="text-[9px] text-teal-500 font-bold ml-1">دكتور |</span><span className="font-bold text-slate-100 text-xs md:text-sm group-hover:text-white transition-colors">{prof.name}</span></div><p className="text-[8px] text-slate-500 mb-1">{prof.college}</p></div>
                 </div>
-                <div className="flex items-center gap-3">{prof.percent !== undefined && ( <div className={`px-2 py-0.5 rounded-lg border font-black text-[9px] ${getSmartColor(prof.percent)}`}>{prof.percent}%</div> )}<ArrowRight size={14} className="text-slate-600 rotate-180 group-hover:text-teal-400 transition-colors" /></div>
+                <div className="flex items-center gap-3">{prof.percent > 0 ? ( <div className={`px-2 py-0.5 rounded-lg border font-black text-[9px] ${getSmartColor(prof.percent)}`}>{prof.percent}%</div> ) : ( <div className="px-2 py-0.5 rounded-lg border border-sky-500/30 bg-sky-500/10 text-sky-400 font-bold text-[9px]">جديد</div> )}<ArrowRight size={14} className="text-slate-600 rotate-180 group-hover:text-teal-400 transition-colors" /></div>
               </Link>
             ))}
             
@@ -452,7 +481,18 @@ export default function Home() {
             {isListLoading && <div className="text-center py-8 text-teal-500 animate-pulse font-bold">جاري البحث...</div>}
             
             {!isListLoading && professors.length === 0 && (
-                <div className="text-center py-8 text-slate-500">لا توجد نتائج مطابقة</div>
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center animate-in fade-in zoom-in-95 duration-300">
+                    <div className="bg-slate-800/50 p-4 rounded-full mb-4">
+                        <Search size={32} className="text-slate-500" />
+                    </div>
+                    <h3 className="text-slate-300 font-bold text-lg mb-2">ما لقينا نتائج مطابقة!</h3>
+                    <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto leading-relaxed">تأكد من كتابة الاسم صح، أو يمكن الدكتور لسى ما انضاف عندنا.</p>
+                    
+                    <Link href="/add-professor" className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-teal-500/20 transition-all active:scale-95">
+                        <UserPlus size={18} />
+                        أضف دكتورك الآن
+                    </Link>
+                </div>
             )}
           </div>
         )}
