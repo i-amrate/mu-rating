@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useParams, useRouter } from 'next/navigation';
 import { Cairo } from 'next/font/google';
-import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile, ChevronDown, Sparkles } from 'lucide-react';
+import { Star, Award, GraduationCap, Building2, MessageSquareQuote, ThumbsUp, MessageCircle, CornerDownRight, Send, ArrowRight, Clock, Reply, Filter, MessagesSquare, Share2, Activity, Percent, BookOpen, Tag, BarChart3, Medal, Eye, CalendarClock, PenTool, Smile, ChevronDown, SlidersHorizontal } from 'lucide-react';
 
 const cairoFont = Cairo({ 
   subsets: ['arabic'],
@@ -28,7 +28,7 @@ const BADGE_TYPES: Record<string, 'positive' | 'neutral' | 'negative'> = {
   "شرحه حلو": 'positive', 
   "شرحه عادي": 'neutral', 
   "شرحه لك عليه": 'negative',
-  "شرحه يبي له شرح": 'negative', // بدون إيموجي
+  "شرحه يبي له شرح": 'negative', 
 
   // المشاريع
   "رهييب بالمشروع": 'positive', "مشروعه طبيعي": 'neutral', "شديد بالمشروع": 'negative',
@@ -113,26 +113,24 @@ const getBadgeColorStyle = (badge: string, isSelected: boolean, isGlowing: boole
   if (!type) type = 'positive'; 
 
   if (isSelected) {
-    // إذا تم اختياره (سواء كان مميز أو لا)
     switch (type) {
       case 'positive': return `bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/40`;
       case 'negative': return `bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/40`;
       default: return `bg-slate-600 text-white border-slate-500 shadow-lg`;
     }
   } else {
-    // إذا لم يتم اختياره (هنا نطبق التغميق للصفة الفائزة)
     if (type === 'neutral') {
         return isGlowing 
-           ? `bg-slate-700 text-slate-300 border-slate-500 font-bold` // فائزة (أغمق وأوضح)
+           ? `bg-slate-700 text-slate-300 border-slate-500 font-bold` 
            : `bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500`;
     }
 
     switch (type) {
       case 'positive': return isGlowing
-        ? `bg-emerald-500/20 text-emerald-400 border-emerald-500/60 font-bold` // فائزة (أغمق وأوضح)
+        ? `bg-emerald-500/20 text-emerald-400 border-emerald-500/60 font-bold`
         : `bg-emerald-500/5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10`;
       case 'negative': return isGlowing
-        ? `bg-red-500/20 text-red-400 border-red-500/60 font-bold` // فائزة (أغمق وأوضح)
+        ? `bg-red-500/20 text-red-400 border-red-500/60 font-bold`
         : `bg-red-500/5 text-red-400 border-red-500/30 hover:bg-red-500/10`;
       default: return `bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500`;
     }
@@ -923,8 +921,9 @@ export default function ProfessorPage() {
                       {/* 🔥 قسم التفاصيل المخفية */}
                       {expandedStats.has(review.id) && (
                           <div className="mt-6 pt-4 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                              {/* 🔥 تم تغيير الأيقونة هنا */}
                               <div className="flex items-center gap-2 mb-3 text-teal-400 text-xs font-bold">
-                                  <Sparkles size={14} /> تفاصيل التقييم
+                                  <SlidersHorizontal size={14} /> تفاصيل التقييم
                               </div>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-950/30 p-4 rounded-xl border border-slate-800">
                                   <MiniStatBar label="التحضير" value={review.rating_attendance} />
@@ -946,8 +945,17 @@ export default function ProfessorPage() {
                         <MessageCircle size={16} /> <span>{expandedReviews.has(review.id) ? 'إخفاء الردود' : `الردود (${review.replies?.length || 0})`}</span>
                         </button>
                     </div>
-                    {/* 👇 شلنا animate-pulse من هنا */}
-                    {!expandedStats.has(review.id) && <span className="text-[10px] text-slate-600 flex items-center gap-1"><ChevronDown size={12}/> اضغط للتفاصيل</span>}
+                    
+                    {/* 👇👇👇 التعديل الكبير هنا: إخفاء النص بالجوال واستبداله بالسهم */}
+                    {!expandedStats.has(review.id) && (
+                        <div className="flex items-center">
+                             <span className="text-[10px] text-slate-500 flex items-center gap-1 hover:text-teal-400 transition-colors">
+                                 <span className="hidden sm:inline">اضغط للتفاصيل</span> {/* يظهر فقط بالكمبيوتر */}
+                                 <ChevronDown size={16} className="animate-bounce" /> {/* يظهر للكل وينبض */}
+                             </span>
+                        </div>
+                    )}
+
                     <CompactDate dateString={review.created_at} />
                   </div>
 
@@ -969,7 +977,7 @@ export default function ProfessorPage() {
                 </div>
               ))
             )}
-          </div>ئ
+          </div>
         </div>
       </main>
     </div>
