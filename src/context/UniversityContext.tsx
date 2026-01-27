@@ -7,13 +7,13 @@ type University = {
   name: string;
   slug: string;
   color_theme: string;
+  logo_url?: string;
 };
 
-// 🔥 1. القائمة الثابتة (مرتبة وجاهزة عشان تطلع فوراً)
-// ملاحظة: حطيت لك معرفات مؤقتة (temp_id) لين تجي المعرفات الحقيقية من الداتابيز
+// القائمة الثابتة (تأكدنا من majmaah)
 const STATIC_UNIVERSITIES: University[] = [
   { id: 'imam_temp', name: 'جامعة الإمام محمد بن سعود', slug: 'imam', color_theme: 'sky' },
-  { id: 'mu_temp', name: 'جامعة المجمعة', slug: 'mu', color_theme: 'amber' }, // تأكدت أن السلاق mu حسب كودك القديم
+  { id: 'mu_temp', name: 'جامعة المجمعة', slug: 'majmaah', color_theme: 'amber' },
   { id: 'ksu_temp', name: 'جامعة الملك سعود', slug: 'ksu', color_theme: 'blue' },
   { id: 'pnu_temp', name: 'جامعة الأميرة نورة', slug: 'pnu', color_theme: 'cyan' },
   { id: 'kfupm_temp', name: 'جامعة الملك فهد للبترول والمعادن', slug: 'kfupm', color_theme: 'emerald' },
@@ -23,48 +23,59 @@ const STATIC_UNIVERSITIES: University[] = [
   { id: 'iau_temp', name: 'جامعة الإمام عبدالرحمن بن فيصل', slug: 'iau', color_theme: 'green' },
 ];
 
-const UniversityContext = createContext<any>(null);
+type UniversityContextType = {
+  universities: University[];
+  selectedUni: University;
+  setSelectedUni: (uni: University) => void;
+  changeUniversity: (uni: University) => void; // رجعنا الاسم القديم عشان الزر يشتغل
+  isLoading: boolean;
+};
+
+const UniversityContext = createContext<UniversityContextType>({
+  universities: STATIC_UNIVERSITIES,
+  selectedUni: STATIC_UNIVERSITIES[0],
+  setSelectedUni: () => {},
+  changeUniversity: () => {},
+  isLoading: false,
+});
 
 export function UniversityProvider({ children }: { children: React.ReactNode }) {
-  // 🔥 2. نبدأ بالقائمة الجاهزة فوراً (بدون انتظار)
   const [universities, setUniversities] = useState<University[]>(STATIC_UNIVERSITIES);
-  
-  // نختار أول جامعة كقيمة افتراضية فوراً
-  const [selectedUni, setSelectedUni] = useState<University>(STATIC_UNIVERSITIES[0]);
-  
-  // 🔥 3. ألغينا حالة التحميل (لأن البيانات عندنا أصلاً)
+  const [selectedUni, setSelectedUniState] = useState<University>(STATIC_UNIVERSITIES[0]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // الدالة الأساسية للتغيير
+  const updateUniversity = (uni: University) => {
+    setSelectedUniState(uni);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('selectedUniSlug', uni.slug);
+    }
+  };
 
   useEffect(() => {
     async function syncData() {
       try {
-        // أ. نشوف وش آخر جامعة اختارها الطالب من الذاكرة ونحددها له فوراً
-        const savedSlug = localStorage.getItem('selectedUniSlug');
-        if (savedSlug) {
-          const found = STATIC_UNIVERSITIES.find(u => u.slug === savedSlug);
-          if (found) setSelectedUni(found);
+        if (typeof window !== 'undefined') {
+            const savedSlug = localStorage.getItem('selectedUniSlug');
+            if (savedSlug) {
+            const found = STATIC_UNIVERSITIES.find(u => u.slug === savedSlug);
+            if (found) setSelectedUniState(found);
+            }
         }
 
-        // ب. نجيب البيانات الحقيقية من الداتابيز (عشان الـ IDs والترتيب لو تغير)
         const { data } = await supabase.from('universities').select('*');
         
         if (data && data.length > 0) {
-            // دمج البيانات: نحدث القائمة الثابتة بالبيانات الحقيقية من السيرفر
-            // هذا يضمن أننا نستخدم الـ ID الصحيح للربط مع الدكاترة
             const mergedList = STATIC_UNIVERSITIES.map(staticUni => {
                 const realUni = data.find(d => d.slug === staticUni.slug);
                 return realUni ? { ...staticUni, ...realUni } : staticUni;
             });
-
             setUniversities(mergedList);
-
-            // تحديث الجامعة المختارة حالياً بالبيانات الحقيقية أيضاً
-            setSelectedUni(prev => {
+            setSelectedUniState(prev => {
                 const updated = mergedList.find(u => u.slug === prev.slug);
                 return updated || prev;
             });
         }
-
       } catch (error) {
         console.error("Error syncing universities:", error);
       }
@@ -73,13 +84,15 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
     syncData();
   }, []);
 
-  const changeUniversity = (uni: University) => {
-    setSelectedUni(uni);
-    localStorage.setItem('selectedUniSlug', uni.slug);
-  };
-
   return (
-    <UniversityContext.Provider value={{ universities, selectedUni, changeUniversity, isLoading }}>
+    // 🔥 هنا الإصلاح: مررنا الدالة باسمين مختلفين عشان نرضي كل الملفات
+    <UniversityContext.Provider value={{ 
+        universities, 
+        selectedUni, 
+        setSelectedUni: updateUniversity,    // عشان صفحة الرابط [slug]
+        changeUniversity: updateUniversity,  // عشان الزر في القائمة Navbar
+        isLoading 
+    }}>
       {children}
     </UniversityContext.Provider>
   );
