@@ -430,6 +430,11 @@ export default function ProfessorPage() {
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   
   const [sortBy, setSortBy] = useState<'newest' | 'most_liked' | 'most_commented'>('newest');
+  
+  // 🔥 States الإكمال التلقائي (المضاف الوحيد)
+  const [courseSuggestions, setCourseSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const viewIncremented = useRef(false);
 
   useEffect(() => {
@@ -454,6 +459,25 @@ export default function ProfessorPage() {
       setReviews(revs || []);
     }
   }
+
+  // 🔥 دالة البحث الذكي (تستخدم الـ RPC الذي أنشأته في قاعدة البيانات)
+  const fetchCourseSuggestions = async (input: string) => {
+    if (input.length < 2) {
+        setCourseSuggestions([]);
+        return;
+    }
+    
+    // استدعاء الدالة الذكية من قاعدة البيانات
+    const { data, error } = await supabase
+        .rpc('search_courses_smart', { search_term: input });
+
+    if (data) {
+        const uniqueCourses = Array.from(new Set(data.map((item: any) => item.course))) as string[];
+        setCourseSuggestions(uniqueCourses);
+    } else if (error) {
+        console.error("خطأ في البحث الذكي:", error);
+    }
+  };
 
   useEffect(() => { if (id) getData(); }, [id]);
 
@@ -703,12 +727,42 @@ export default function ProfessorPage() {
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    {/* 🔥 المقرر صار اختياري */}
+                  <div className="relative">
+                    {/* 🔥🔥🔥 خانة المقرر مع الاقتراحات الذكية 🔥🔥🔥 */}
                     <label className="text-xs font-bold text-slate-400 mb-2 block">المقرر (اختياري)</label>
                     <div className="relative">
                         <BookOpen size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                        <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} placeholder="مثال: محاسبة 101" className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" />
+                        <input 
+                            type="text" 
+                            value={course} 
+                            onChange={(e) => {
+                                setCourse(e.target.value);
+                                fetchCourseSuggestions(e.target.value); // استدعاء دالة البحث الذكي
+                                setShowSuggestions(true);
+                            }} 
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            placeholder="مثال: محاسبة 101" 
+                            className="w-full bg-slate-950/50 border border-slate-700 rounded-xl pr-9 pl-4 py-3 text-sm focus:border-teal-500 outline-none text-white transition-all" 
+                        />
+                        {/* قائمة الاقتراحات المنبثقة */}
+                        {showSuggestions && courseSuggestions.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                                {courseSuggestions.map((suggestion, index) => (
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        onClick={() => {
+                                            setCourse(suggestion);
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="w-full text-right px-4 py-2.5 text-sm text-slate-300 hover:bg-teal-500/10 hover:text-teal-400 transition-colors border-b border-slate-800 last:border-0"
+                                    >
+                                        {suggestion}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                   </div>
                   <div>
