@@ -15,6 +15,23 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// --- 1. Added missing getGradeStyle function ---
+const getGradeStyle = (grade: string) => {
+  switch (grade) {
+    case 'A+': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
+    case 'A':  return 'bg-emerald-600/20 text-emerald-500 border-emerald-600/40';
+    case 'B+': return 'bg-lime-500/20 text-lime-400 border-lime-500/40';
+    case 'B':  return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
+    case 'C+': return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
+    case 'C':  return 'bg-orange-600/20 text-orange-500 border-orange-600/40';
+    case 'D+': return 'bg-red-400/20 text-red-400 border-red-400/40';
+    case 'D':  return 'bg-red-600/20 text-red-500 border-red-600/40';
+    case 'F':  return 'bg-red-900/40 text-red-600 border-red-900/60 font-black';
+    case 'أتحفظ عن الإفصاح': return 'bg-slate-700 text-slate-400 border-slate-600 border-dashed text-[10px]';
+    default:   return 'bg-slate-700 text-slate-300 border-slate-600';
+  }
+};
+
 const BADGE_PRIORITY: Record<string, number> = {
   'positive': 1, 'neutral': 2, 'negative': 3
 };
@@ -315,22 +332,7 @@ const StatBar = ({ label, value, icon: Icon, colorClass, bgClass }: { label: str
     );
 };
 
-const getGradeStyle = (grade: string) => {
-  switch (grade) {
-    case 'A+': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50';
-    case 'A':  return 'bg-emerald-600/20 text-emerald-500 border-emerald-600/40';
-    case 'B+': return 'bg-lime-500/20 text-lime-400 border-lime-500/40';
-    case 'B':  return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
-    case 'C+': return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
-    case 'C':  return 'bg-orange-600/20 text-orange-500 border-orange-600/40';
-    case 'D+': return 'bg-red-400/20 text-red-400 border-red-400/40';
-    case 'D':  return 'bg-red-600/20 text-red-500 border-red-600/40';
-    case 'F':  return 'bg-red-900/40 text-red-600 border-red-900/60 font-black';
-    case 'أتحفظ عن الإفصاح': return 'bg-slate-700 text-slate-400 border-slate-600 border-dashed text-[10px]';
-    default:   return 'bg-slate-700 text-slate-300 border-slate-600';
-  }
-};
-
+// --- 2. Fixed submitting variable name in ReplyItem usage ---
 const ReplyItem = ({ reply, allReplies, onReplyClick, activeReplyId, replyContent, setReplyContent, submitReply, submitting, parentText, onLikeReply, likedReplies }: any) => {
   const childReplies = allReplies.filter((r: any) => r.parent_id === reply.id);
   const isLiked = likedReplies.has(reply.id);
@@ -1028,7 +1030,7 @@ export default function ProfessorPage() {
                       </div>
                       <div className="pr-2 md:pr-4">
                         {review.replies?.filter((r:any) => !r.parent_id).map((reply: any) => (
-                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submitting} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
+                          <ReplyItem key={reply.id} reply={reply} allReplies={review.replies} onReplyClick={(id: string) => { setActiveReplyId(id); setReplyContent(''); }} activeReplyId={activeReplyId} replyContent={replyContent} setReplyContent={setReplyContent} submitReply={submitReply} submitting={submittingReply} parentText={review.content} onLikeReply={handleReplyLike} likedReplies={likedReplies} />
                         ))}
                       </div>
                     </div>
