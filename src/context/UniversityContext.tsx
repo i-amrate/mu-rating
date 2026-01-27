@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 type University = {
@@ -27,7 +27,7 @@ type UniversityContextType = {
   universities: University[];
   selectedUni: University;
   setSelectedUni: (uni: University) => void;
-  changeUniversity: (uni: University) => void; // رجعنا الاسم القديم عشان الزر يشتغل
+  changeUniversity: (uni: University) => void;
   isLoading: boolean;
 };
 
@@ -44,13 +44,13 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
   const [selectedUni, setSelectedUniState] = useState<University>(STATIC_UNIVERSITIES[0]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // الدالة الأساسية للتغيير
-  const updateUniversity = (uni: University) => {
+  // 🔥 هنا كان الحل السحري: استخدام useCallback لتثبيت الدالة ومنع الدوران اللانهائي
+  const updateUniversity = useCallback((uni: University) => {
     setSelectedUniState(uni);
     if (typeof window !== 'undefined') {
         localStorage.setItem('selectedUniSlug', uni.slug);
     }
-  };
+  }, []); // القوسين الفاضية [] تعني: لا تعيد إنشاء الدالة أبداً
 
   useEffect(() => {
     async function syncData() {
@@ -58,8 +58,8 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
         if (typeof window !== 'undefined') {
             const savedSlug = localStorage.getItem('selectedUniSlug');
             if (savedSlug) {
-            const found = STATIC_UNIVERSITIES.find(u => u.slug === savedSlug);
-            if (found) setSelectedUniState(found);
+              const found = STATIC_UNIVERSITIES.find(u => u.slug === savedSlug);
+              if (found) setSelectedUniState(found);
             }
         }
 
@@ -85,12 +85,11 @@ export function UniversityProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   return (
-    // 🔥 هنا الإصلاح: مررنا الدالة باسمين مختلفين عشان نرضي كل الملفات
     <UniversityContext.Provider value={{ 
         universities, 
         selectedUni, 
-        setSelectedUni: updateUniversity,    // عشان صفحة الرابط [slug]
-        changeUniversity: updateUniversity,  // عشان الزر في القائمة Navbar
+        setSelectedUni: updateUniversity,    
+        changeUniversity: updateUniversity,  
         isLoading 
     }}>
       {children}
