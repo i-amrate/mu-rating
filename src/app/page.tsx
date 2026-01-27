@@ -181,9 +181,11 @@ export default function Home() {
         if (reviews) {
           reviews.forEach((r: any) => {
             if (!profStats[r.professor_id]) profStats[r.professor_id] = { total: 0, count: 0 };
-            // 🔥 تعديل الدقة هنا: إجبار التحويل لرقم لتفادي مشاكل النصوص
-            const numericRating = Number(r.rating); 
-            profStats[r.professor_id].total += (numericRating / 5) * 100;
+            
+            // 🔥🔥🔥 التعديل هنا: إجبار التحويل لرقم (Number) لحل مشكلة الحساب 🔥🔥🔥
+            const ratingValue = Number(r.rating);
+            
+            profStats[r.professor_id].total += (ratingValue / 5) * 100;
             profStats[r.professor_id].count += 1;
           });
         }
